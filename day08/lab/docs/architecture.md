@@ -32,31 +32,22 @@ Hệ thống là trợ lý nội bộ dành cho khối CS và IT Helpdesk, hỗ 
 | `access_control_sop.txt` | it/access-control-sop.md | IT Security | 7 |
 | `it_helpdesk_faq.txt` | support/helpdesk-faq.md | IT | 6 |
 | `hr_leave_policy.txt` | hr/leave-policy-2026.pdf | HR | 5 |
-| `policy_refund_v4.txt` | policy/refund-v4.pdf | CS | 6 |
-| `sla_p1_2026.txt` | support/sla-p1-2026.pdf | IT | 5 |
-| `access_control_sop.txt` | it/access-control-sop.md | IT Security | 7 |
-| `it_helpdesk_faq.txt` | support/helpdesk-faq.md | IT | 6 |
-| `hr_leave_policy.txt` | hr/leave-policy-2026.pdf | HR | 5 |
 
-Tổng số chunks: 29
+**Tổng số chunks:** 29 chunks (Persistent storage tại `chroma_db/`).
 
 ### Quyết định chunking
 | Tham số | Giá trị | Lý do |
 |---------|---------|-------|
-| Chunk size | 400 tokens (xấp xỉ) | Cân bằng giữa giữ ngữ cảnh điều khoản và tránh context quá dài khi generate |
-| Overlap | 80 tokens (xấp xỉ) | Giảm mất thông tin tại ranh giới chunk, nhất là với câu hỏi cần điều kiện ngoại lệ |
-| Chunking strategy | Heading-based + paragraph-based | Ưu tiên cắt theo section tự nhiên ("=== Section ... ==="), sau đó chia theo paragraph nếu section quá dài |
-| Metadata fields | source, section, effective_date, department, access | Phục vụ filter, freshness, citation |
-| Chunk size | 400 tokens | Đảm bảo mỗi chunk chứa đủ một đoạn chính sách hoàn chỉnh (khoảng 1600 ký tự). |
-| Overlap | 80 tokens | Tránh việc mất ngữ cảnh tại ranh giới cắt giữa các paragraph. |
-| Chunking strategy | Heading-based | Cắt dựa trên tiêu mục `=== Section ===` để giữ tính toàn vẹn của điều khoản. |
-| Metadata fields | source, section, effective_date, department, access | Phục vụ trích dẫn nguồn, kiểm tra ngày hiệu lực và quyền truy cập. |
+| Chunk size | 400 tokens | Đảm bảo mỗi chunk chứa đủ một đoạn chính sách hoàn chỉnh, tránh việc thông tin bị cắt quá vụn. |
+| Overlap | 80 tokens | Tránh việc mất ngữ cảnh tại ranh giới cắt giữa các section hoặc paragraph. |
+| Chunking strategy | Heading-based | Cắt dựa trên tiêu mục `=== Section ===` để giữ tính toàn vẹn của một điều khoản pháp lý/kỹ thuật. |
+| Metadata fields | source, section, effective_date, department, access | Phục vụ trích dẫn nguồn, kiểm tra ngày hiệu lực và phân cấp quyền truy cập. |
 
 ### Embedding model
-- **Model**: sentence-transformers `paraphrase-multilingual-MiniLM-L12-v2` (local embedding)
-- **Model**: `paraphrase-multilingual-MiniLM-L12-v2` (Sentence-Transformers)
-- **Vector store**: ChromaDB (PersistentClient)
-- **Similarity metric**: Cosine (hnsw:space)
+- **Model**: `paraphrase-multilingual-MiniLM-L12-v2` (Local Sentence-Transformers).
+- **Lý do**: Đảm bảo tốc độ truy vấn nhanh, không phụ thuộc internet/quota API và bảo mật dữ liệu nội bộ.
+- **Vector store**: ChromaDB (với thuật toán HNSW search).
+- **Similarity metric**: Cosine Similarity.
 
 ---
 
@@ -68,80 +59,62 @@ Tổng số chunks: 29
 | Strategy | Dense (embedding similarity) |
 | Top-k search | 10 |
 | Top-k select | 3 |
-| Rerank | Không |
+| Rerank | False |
 
 ### Variant (Sprint 3)
 | Tham số | Giá trị | Thay đổi so với baseline |
 |---------|---------|------------------------|
-| Strategy | Dense + rerank | Giữ dense retrieval, thêm bước rerank cross-encoder trước khi chọn top-k |
-| Top-k search | 10 | Không đổi |
-| Top-k select | 3 | Không đổi |
-| Rerank | Cross-encoder (`cross-encoder/ms-marco-MiniLM-L-6-v2`) | Bật rerank (`use_rerank=True`) |
-| Query transform | Không dùng | Không đổi query gốc để tuân thủ A/B rule |
-| Strategy | Dense + Rerank | Giống baseline ở bước search, nhưng thêm bước lọc lại. |
+| Strategy | Dense + Rerank | Giữ nguyên bước search ban đầu nhưng thêm bộ lọc tinh. |
 | Top-k search | 10 | Lấy rộng để bắt được nhiều ứng viên tiềm năng. |
-| Top-k select | 3 | Chọn ra 3 đoạn tinh túy nhất sau khi rerank. |
-| Rerank | Cross-Encoder | Sử dụng `ms-marco-MiniLM-L-6-v2` để chấm điểm lại mức độ liên quan. |
-| Query transform | None | Giữ nguyên query để đảm bảo tính ổn định. |
+| Top-k select | 3 | Chọn ra 3 đoạn "tinh túy" nhất sau khi qua Cross-Encoder. |
+| Rerank Model | `ms-marco-MiniLM-L-6-v2` | Sử dụng để chấm điểm lại score dựa trên cặp (Query, Doc). |
 
 **Lý do chọn variant này:**
-Nhóm chọn rerank vì baseline dense thường retrieve đúng nguồn nhưng chưa luôn chọn được thứ tự top-3 tối ưu cho generation.
-Rerank được kỳ vọng cải thiện quality của context đưa vào prompt (đặc biệt completeness/relevance) mà không thay đổi index, chunking hoặc prompt.
-Thiết kế này tuân thủ A/B rule: chỉ đổi đúng một biến là `use_rerank`.
-Nhóm chọn **Rerank** vì tập dữ liệu chính sách (Policy) thường có nhiều câu chữ lặp lại (như "điều kiện", "quy trình"). Rerank giúp mô hình nhận diện được đoạn văn nào thực sự chứa câu trả lời cho câu hỏi cụ thể của người dùng thay vì chỉ dựa vào độ tương đồng vector chung chung.
+Qua đánh giá Baseline, Dense search đôi khi mang về các đoạn văn có điểm ngữ nghĩa (cosine) cao nhưng không trực tiếp trả lời được câu hỏi (noise). Rerank giúp mô hình nhận diện được đoạn văn nào thực sự chứa câu trả lời cụ thể cho các tình huống Helpdesk phức tạp, từ đó cải thiện tính đầy đủ (Completeness).
 
 ---
 
 ## 4. Generation (Sprint 2)
 
 ### Grounded Prompt Template
-Hệ thống sử dụng cấu trúc tách biệt giữa **System Instruction** và **Context Block**:
+Hệ thống sử dụng cấu trúc tách biệt giữa **System Instruction** (để giữ model trong context) và **Context Block** (chứa bằng chứng).
 
-**System Prompt:**
-- EVIDENCE ONLY: Chỉ trả lời từ context.
-- ABSTAIN: Không có trong docs thì nói "Thông tin này không có trong tài liệu...".
-- CITATION: Luôn gắn mã nguồn `[1]`, `[2]`.
-
-**Context Block Format:**
-`[số] source | section | dept | effective: date | score=val\n<nội dung chunk>`
+**Ràng buộc chính:**
+1. **Evidence-only**: Không dùng kiến thức bên ngoài.
+2. **Abstain**: Nói "không biết" nếu context không đủ.
+3. **Citation**: Gắn mã nguồn `[1]`, `[2]` vào sau mỗi tuyên bố factual.
 
 ### LLM Configuration
 | Tham số | Giá trị |
 |---------|---------|
-| Model | gpt-4o-mini (OpenAI) |
-| Temperature | 0 (để output ổn định cho eval) |
-| Model | gemini-2.5-flash |
-| Temperature | 0 (để kết quả nhất quán) |
+| Model | gemini-1.5-flash |
+| Temperature | 0 (đảm bảo tính ổn định tối đa cho việc đánh giá) |
 | Max tokens | 512 |
 
 ---
 
 ## 5. Failure Mode Checklist
 
-| Failure Mode | Triệu chứng | Cách kiểm tra |
+| Failure Mode | Triệu chứng | Cách khắc phục |
 |-------------|-------------|---------------|
-| Index lỗi | Trích dẫn file cũ (v3 thay vì v4) | Kiểm tra `effective_date` trong metadata. |
-| Chunking tệ | Câu trả lời bị cụt ngủn hoặc mất ý | Xem đoạn preview trong log `[RAG] Context block`. |
-| Retrieval lỗi | LLM trả lời "không biết" dù docs có | Tăng `top_k_search` hoặc kiểm tra score trùng khớp. |
-| Generation lỗi | Câu trả lời hay nhưng không có citation | Kiểm tra System Prompt và ép model tuân thủ. |
+| Hallucination | Model bịa thêm ngày tháng không có trong docs | Ép rules trong System Prompt và dùng Temp=0. |
+| Retrieval lỗi | LLM trả lời "không biết" dù tài liệu có dữ liệu | Kiểm tra metadata `access` hoặc tăng `top_k_search`. |
+| Loss of Citation | Câu trả lời hay nhưng không trích nguồn | Dùng One-shot example trong prompt hoặc dùng model mạnh hơn. |
 
 ---
 
-## 6. Diagram (tùy chọn)
-
-Sơ đồ pipeline hiện tại:
+## 6. Diagram
 
 ```mermaid
 graph LR
-    A[User Query] --> B[Query Embedding]
-    B --> C[ChromaDB Vector Search]
-    C --> D[Top-10 Candidates]
-    D --> E{Rerank?}
-    E -->|Yes| F[Cross-Encoder]
-    E -->|No| G[Top-3 Select]
+    A[User Query] --> B[get_embedding]
+    B --> C[ChromaDB Search]
+    C --> D[Top-10 Chunks]
+    D --> E{Use Rerank?}
+    E -->|Yes| F[Cross-Encoder Rerank]
+    E -->|No| G[Top-3 Chunks]
     F --> G
     G --> H[Build Context Block]
-    H --> I[Grounded Prompt]
-    I --> J[LLM]
-    J --> K[Answer + Citation]
+    H --> I[Gemini 1.5 Flash]
+    I --> J[Grounded Answer + Citation]
 ```

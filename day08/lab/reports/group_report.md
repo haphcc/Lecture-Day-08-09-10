@@ -32,9 +32,10 @@ Chúng mình thiết lập một hệ thống **System Prompt** cực kỳ chặ
 
 | Metric | Score (Baseline) | Score (Variant) | Nhận xét |
 |--------|-----------------|-----------------|----------|
-| **Faithfulness** | 4.6/5 | 4.9/5 | Rerank giúp loại bỏ các đoạn văn nhiễu, LLM bám sát context hơn. |
-| **Relevance** | 4.2/5 | 4.7/5 | Trả lời đúng trọng tâm hơn, không bị lạc sang các điều khoản tương tự. |
-| **Context Recall** | 4.0/5 | 4.0/5 | Giữ nguyên (vì cả hai đều dùng cùng một bộ search ban đầu). |
+| **Faithfulness** | 5.00/5 | 4.83/5 | Giảm nhẹ do Rerank mang về context chi tiết hơn, khiến LLM đôi khi tổng hợp có phần "sáng tạo" hơn. |
+| **Relevance** | 4.17/5 | 4.08/5 | Biến động không đáng kể, cho thấy Rerank giữ được độ tập trung tốt của câu trả lời. |
+| **Context Recall** | 5.00/5 | 5.00/5 | Đạt điểm tuyệt đối, chứng minh bộ retriever (Dense Search) đã hoạt động rất hiệu quả. |
+| **Completeness** | 3.17/5 | 3.33/5 | Cải thiện rõ rệt nhất (+0.16). Rerank giúp chọn được các chunks chứa nhiều thông tin bổ trợ quan trọng hơn. |
 
 ---
 
