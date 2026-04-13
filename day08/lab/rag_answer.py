@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 # =============================================================================
 # CẤU HÌNH
@@ -42,7 +42,9 @@ COLLECTION_NAME = "rag_lab"
 TOP_K_SEARCH = 10    # Số chunk lấy từ vector store trước rerank (search rộng)
 TOP_K_SELECT = 3     # Số chunk gửi vào prompt sau rerank/select (top-3 sweet spot)
 
-# Model Gemini dùng trong Sprint 2+3
+# LLM provider + model (đọc từ .env)
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini").strip().lower()
+LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
 
 # Cache Cross-Encoder model để tránh load lại mỗi lần gọi
@@ -212,13 +214,25 @@ def rerank(
     # Load model một lần duy nhất (cache)
     if _CROSS_ENCODER_MODEL is None:
         print("[rerank] Đang load Cross-Encoder model lần đầu...")
-        _CROSS_ENCODER_MODEL = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+        try:
+            # local_files_only=True để tránh treo mạng trong môi trường lab hạn chế internet.
+            _CROSS_ENCODER_MODEL = CrossEncoder(
+                "cross-encoder/ms-marco-MiniLM-L-6-v2",
+                local_files_only=True,
+            )
+        except Exception as e:
+            print(f"[rerank] Không load được model local ({e}). Fallback: dùng dense top-k.")
+            return candidates[:top_k]
 
     # Tạo pairs (query, chunk_text) để chấm
     pairs = [[query, chunk["content"]] for chunk in candidates]
 
     # Chấm điểm relevance
-    scores = _CROSS_ENCODER_MODEL.predict(pairs)
+    try:
+        scores = _CROSS_ENCODER_MODEL.predict(pairs)
+    except Exception as e:
+        print(f"[rerank] Predict lỗi ({e}). Fallback: dùng dense top-k.")
+        return candidates[:top_k]
 
     # Sort theo score giảm dần và lấy top_k
     ranked = sorted(
@@ -322,50 +336,81 @@ Answer (cite sources like [1], abstain if not in context):"""
 
 
 # =============================================================================
-# GENERATION — CALL GEMINI LLM
+# GENERATION — CALL LLM (OpenAI hoặc Gemini)
 # =============================================================================
 
 def call_llm(system_prompt: str, user_prompt: str) -> str:
     """
-    Gọi Google Gemini API để sinh câu trả lời.
+    Gọi LLM theo LLM_PROVIDER trong .env.
 
-    Dùng Gemini 1.5 Flash — nhanh, rẻ, phù hợp cho RAG Q&A.
+    Hỗ trợ:
+      - openai: Chat Completions API
+      - gemini: Google Generative AI SDK
+
     temperature=0 để output ổn định, dễ đánh giá.
     """
-    import google.generativeai as genai
-    from google.api_core import exceptions
+    provider = LLM_PROVIDER
 
-    api_key = os.getenv("GOOGLE_API_KEY")
-    if not api_key:
-        raise RuntimeError("Thiếu GOOGLE_API_KEY trong file .env.")
+    if provider == "openai":
+        from openai import OpenAI
 
-    genai.configure(api_key=api_key)
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise RuntimeError("Thiếu OPENAI_API_KEY trong file .env.")
 
-    # Đôi khi model name cần prefix models/ hoặc không tùy phiên bản SDK
-    # Chúng ta dùng tên model trực tiếp từ config
-    model_name = GEMINI_MODEL
-    if not model_name.startswith("models/"):
-        model_name = f"models/{model_name}"
+        model_name = LLM_MODEL
+        client = OpenAI(api_key=api_key)
 
-    try:
-        model = genai.GenerativeModel(
-            model_name=model_name,
-            system_instruction=system_prompt,
-        )
-
-        response = model.generate_content(
-            user_prompt,
-            generation_config=genai.GenerationConfig(
+        try:
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
                 temperature=0.0,
-                max_output_tokens=512,
-            ),
-        )
-        return response.text.strip()
+                max_tokens=512,
+            )
+            content = response.choices[0].message.content or ""
+            return content.strip()
+        except Exception as e:
+            return f"[ERROR] Lỗi gọi OpenAI: {e}"
 
-    except exceptions.NotFound as e:
-        return f"[ERROR] Model '{model_name}' không tìm thấy (404). Hãy kiểm tra lại GEMINI_MODEL trong .env hoặc API Key có quyền truy cập model này không. Chi tiết: {e}"
-    except Exception as e:
-        return f"[ERROR] Lỗi gọi Gemini: {e}"
+    if provider == "gemini":
+        import google.generativeai as genai
+        from google.api_core import exceptions
+
+        api_key = os.getenv("GOOGLE_API_KEY")
+        if not api_key:
+            raise RuntimeError("Thiếu GOOGLE_API_KEY trong file .env.")
+
+        genai.configure(api_key=api_key)
+
+        model_name = GEMINI_MODEL
+        if not model_name.startswith("models/"):
+            model_name = f"models/{model_name}"
+
+        try:
+            model = genai.GenerativeModel(
+                model_name=model_name,
+                system_instruction=system_prompt,
+            )
+
+            response = model.generate_content(
+                user_prompt,
+                generation_config=genai.GenerationConfig(
+                    temperature=0.0,
+                    max_output_tokens=512,
+                ),
+            )
+            return (response.text or "").strip()
+
+        except exceptions.NotFound as e:
+            return f"[ERROR] Model '{model_name}' không tìm thấy (404). Hãy kiểm tra lại GEMINI_MODEL trong .env hoặc API Key có quyền truy cập model này không. Chi tiết: {e}"
+        except Exception as e:
+            return f"[ERROR] Lỗi gọi Gemini: {e}"
+
+    raise RuntimeError("LLM_PROVIDER không hợp lệ. Hãy dùng 'openai' hoặc 'gemini' trong .env.")
 
 
 # =============================================================================
