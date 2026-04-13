@@ -19,6 +19,11 @@ use_rerank = False
 llm_model = gpt-4o-mini
 ```
 
+
+
+
+
+
 **Scorecard Baseline:**
 | Metric | Average Score |
 |--------|--------------|
