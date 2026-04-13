@@ -1,14 +1,14 @@
 # Scorecard: baseline_dense
-Generated: 2026-04-13 17:07
+Generated: 2026-04-13 17:22
 
 ## Summary
 
 | Metric | Average Score |
 |--------|--------------|
-| Faithfulness | 4.75/5 |
-| Relevance | 4.25/5 |
+| Faithfulness | 4.83/5 |
+| Relevance | 4.08/5 |
 | Context Recall | 5.00/5 |
-| Completeness | 3.42/5 |
+| Completeness | 3.08/5 |
 
 ## Per-Question Results
 
@@ -19,7 +19,7 @@ Generated: 2026-04-13 17:07
 | q03 | Access Control | 5 | 5 | 5 | 4 | Keyword grounded ratio=1.00 (8/8 matched). |
 | q04 | Refund | 5 | 5 | 5 | 5 | Keyword grounded ratio=0.90 (18/20 matched). |
 | q05 | IT Helpdesk | 5 | 5 | 5 | 5 | Keyword grounded ratio=1.00 (12/12 matched). |
-| q06 | SLA | 4 | 5 | 5 | 5 | Keyword grounded ratio=0.79 (15/19 matched). |
+| q06 | SLA | 5 | 3 | 5 | 1 | Answer abstains; treated as grounded for anti-hall |
 | q07 | Access Control | 5 | 3 | 5 | 1 | Answer abstains; treated as grounded for anti-hall |
 | q08 | HR Policy | 4 | 3 | 5 | 3 | Keyword grounded ratio=0.75 (6/8 matched). |
 | q09 | Insufficient Context | 5 | 5 | None | 1 | Answer abstains; treated as grounded for anti-hall |
