@@ -81,5 +81,21 @@
     "difficulty": "hard",
     "category": "Refund",
     "note": "Câu hỏi thiếu context đặc biệt — kiểm tra grounding khi model không có đủ thông tin"
+  },
+  {
+    "id": "q11",
+    "question": "Mật khẩu có bắt buộc đổi định kỳ không? Nếu có thì bao lâu?",
+    "expected_answer": "Có. Mật khẩu phải được thay đổi mỗi 90 ngày và hệ thống sẽ nhắc nhở trước 7 ngày khi hết hạn.",
+    "expected_sources": ["support/helpdesk-faq.md"],
+    "difficulty": "easy",
+    "category": "IT Helpdesk"
+  },
+  {
+    "id": "q12",
+    "question": "Trong escalation khẩn cấp P1, quyền tạm thời tối đa được cấp trong bao lâu?",
+    "expected_answer": "Trong quy trình escalation khẩn cấp, On-call IT Admin có thể cấp quyền tạm thời tối đa 24 giờ sau khi được Tech Lead phê duyệt bằng lời.",
+    "expected_sources": ["it/access-control-sop.md"],
+    "difficulty": "medium",
+    "category": "Access Control"
   }
 ]

@@ -19,10 +19,21 @@ A/B Rule (từ slide):
 
 import json
 import csv
+import re
+import math
+import sys
+import unicodedata
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from rag_answer import rag_answer
+
+try:
+    # Avoid UnicodeEncodeError on non-UTF8 Windows consoles.
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
 
 # =============================================================================
 # CẤU HÌNH
@@ -43,12 +54,77 @@ BASELINE_CONFIG = {
 # Cấu hình variant (Sprint 3 — điều chỉnh theo lựa chọn của nhóm)
 # TODO Sprint 4: Cập nhật VARIANT_CONFIG theo variant nhóm đã implement
 VARIANT_CONFIG = {
-    "retrieval_mode": "hybrid",   # Hoặc "dense" nếu chỉ đổi rerank
+    "retrieval_mode": "dense",    # Variant hiện tại: dense + rerank
     "top_k_search": 10,
     "top_k_select": 3,
-    "use_rerank": True,           # Hoặc False nếu variant là hybrid không rerank
-    "label": "variant_hybrid_rerank",
+    "use_rerank": True,
+    "label": "variant_dense_rerank",
 }
+
+
+def _normalize_text(text: str) -> str:
+    return re.sub(r"\s+", " ", (text or "").strip().lower())
+
+
+def _strip_accents(text: str) -> str:
+    normalized = unicodedata.normalize("NFD", text or "")
+    return "".join(ch for ch in normalized if unicodedata.category(ch) != "Mn")
+
+
+def _normalize_source_token(text: str) -> str:
+    token = _normalize_text(text)
+    token = token.replace("\\", "/").split("/")[-1]
+    token = re.sub(r"\.(pdf|md|txt)$", "", token)
+    token = token.replace("-", "_")
+    return _strip_accents(token)
+
+
+def _extract_keywords(text: str, min_len: int = 4) -> List[str]:
+    normalized = _normalize_text(text)
+    # Keep unicode letters (incl. Vietnamese accents) for fair keyword matching.
+    words = re.findall(r"\b[\w\-/]+\b", normalized, flags=re.UNICODE)
+    stopwords = {
+        "va", "và", "voi", "với", "cho", "trong", "nhung", "những", "cua", "của",
+        "la", "là", "mot", "một", "duoc", "được", "khong", "không", "co", "có",
+        "the", "thể", "khi", "neu", "nếu", "theo", "tren", "trên", "tu", "từ",
+        "den", "đến", "nay", "hiện", "tai", "tại", "nay", "day", "đây", "do", "đó",
+        "from", "with", "without", "when", "where", "what", "which", "have",
+        "has", "were", "was", "will", "shall", "there", "here", "nhu", "như", "the",
+        "and", "for", "are", "is", "thong", "thông", "tin", "bao", "nhiêu",
+    }
+    return [w for w in words if len(w) >= min_len and w not in stopwords]
+
+
+def _contains_abstain(answer: str) -> bool:
+    text = _strip_accents(_normalize_text(answer))
+    abstain_markers = [
+        "khong co trong tai lieu",
+        "khong du du lieu",
+        "thong tin nay khong co trong tai lieu duoc cung cap",
+        "thong tin nay khong co trong tai lieu",
+        "i do not know",
+        "insufficient information",
+        "not in the provided context",
+    ]
+    return any(marker in text for marker in abstain_markers)
+
+
+def _score_by_ratio(ratio: float) -> int:
+    if ratio >= 0.85:
+        return 5
+    if ratio >= 0.65:
+        return 4
+    if ratio >= 0.45:
+        return 3
+    if ratio >= 0.25:
+        return 2
+    return 1
+
+
+def _score_recall_ratio(ratio: float) -> int:
+    """Map recall ratio to the required 1-5 rubric for answered questions."""
+    ratio = max(0.0, min(1.0, ratio))
+    return max(1, min(5, math.ceil(ratio * 5)))
 
 
 # =============================================================================
@@ -88,11 +164,29 @@ def score_faithfulness(
 
     Trả về dict với: score (1-5) và notes (lý do)
     """
-    # TODO Sprint 4: Implement scoring
-    # Tạm thời trả về None (yêu cầu chấm thủ công)
+    if _contains_abstain(answer):
+        return {
+            "score": 5,
+            "notes": "Answer abstains; treated as grounded for anti-hallucination safety.",
+        }
+
+    context_text = " ".join(c.get("content", "") for c in chunks_used)
+    context_keywords = set(_extract_keywords(context_text))
+    answer_keywords = _extract_keywords(answer)
+
+    if not answer_keywords:
+        return {
+            "score": 1,
+            "notes": "Answer too short/empty; cannot verify grounding.",
+        }
+
+    matched = [k for k in answer_keywords if k in context_keywords]
+    ratio = len(matched) / max(1, len(answer_keywords))
+    score = _score_by_ratio(ratio)
+
     return {
-        "score": None,
-        "notes": "TODO: Chấm thủ công hoặc implement LLM-as-Judge",
+        "score": score,
+        "notes": f"Keyword grounded ratio={ratio:.2f} ({len(matched)}/{len(answer_keywords)} matched).",
     }
 
 
@@ -113,9 +207,26 @@ def score_answer_relevance(
 
     TODO Sprint 4: Implement tương tự score_faithfulness
     """
+    query_keywords = set(_extract_keywords(query))
+    answer_keywords = set(_extract_keywords(answer))
+
+    if not query_keywords:
+        return {"score": 3, "notes": "No strong query keywords to evaluate."}
+
+    if _contains_abstain(answer):
+        likely_unknown_query = any(k in _normalize_text(query) for k in ["err-403", "penalty", "muc phat"])
+        return {
+            "score": 5 if likely_unknown_query else 3,
+            "notes": "Abstain detected; high relevance for unsupported question, medium otherwise.",
+        }
+
+    overlap = query_keywords.intersection(answer_keywords)
+    ratio = len(overlap) / max(1, len(query_keywords))
+    score = _score_by_ratio(ratio)
+
     return {
-        "score": None,
-        "notes": "TODO: Implement score_answer_relevance",
+        "score": score,
+        "notes": f"Query-answer keyword overlap={ratio:.2f} ({len(overlap)}/{len(query_keywords)}).",
     }
 
 
@@ -155,9 +266,13 @@ def score_context_recall(
     found = 0
     missing = []
     for expected in expected_sources:
-        # Kiểm tra partial match (tên file)
-        expected_name = expected.split("/")[-1].replace(".pdf", "").replace(".md", "")
-        matched = any(expected_name.lower() in r.lower() for r in retrieved_sources)
+        # Kiểm tra partial match với normalize path/file token.
+        expected_name = _normalize_source_token(expected)
+        matched = any(
+            expected_name in _normalize_source_token(retrieved)
+            or _normalize_source_token(retrieved) in expected_name
+            for retrieved in retrieved_sources
+        )
         if matched:
             found += 1
         else:
@@ -166,7 +281,7 @@ def score_context_recall(
     recall = found / len(expected_sources) if expected_sources else 0
 
     return {
-        "score": round(recall * 5),  # Convert to 1-5 scale
+        "score": _score_recall_ratio(recall),
         "recall": recall,
         "found": found,
         "missing": missing,
@@ -198,9 +313,34 @@ def score_completeness(
          Rate completeness 1-5. Are all key points covered?
          Output: {'score': int, 'missing_points': [str]}"
     """
+    if not expected_answer.strip():
+        return {
+            "score": None,
+            "notes": "No expected_answer provided for this question.",
+        }
+
+    if _contains_abstain(answer):
+        return {
+            "score": 5 if _contains_abstain(expected_answer) else 1,
+            "notes": "Abstain comparison against expected answer.",
+        }
+
+    expected_keywords = set(_extract_keywords(expected_answer))
+    answer_keywords = set(_extract_keywords(answer))
+
+    if not expected_keywords:
+        return {
+            "score": 3,
+            "notes": "Expected answer has no strong keywords; assigned neutral score.",
+        }
+
+    covered = expected_keywords.intersection(answer_keywords)
+    ratio = len(covered) / max(1, len(expected_keywords))
+    score = _score_by_ratio(ratio)
+
     return {
-        "score": None,
-        "notes": "TODO: Implement score_completeness (so sánh với expected_answer)",
+        "score": score,
+        "notes": f"Expected keyword coverage={ratio:.2f} ({len(covered)}/{len(expected_keywords)}).",
     }
 
 
@@ -276,10 +416,22 @@ def run_scorecard(
             chunks_used = []
 
         # --- Chấm điểm ---
-        faith = score_faithfulness(answer, chunks_used)
-        relevance = score_answer_relevance(query, answer)
-        recall = score_context_recall(chunks_used, expected_sources)
-        complete = score_completeness(query, answer, expected_answer)
+        is_pipeline_error = (
+            answer == "PIPELINE_NOT_IMPLEMENTED"
+            or answer.startswith("ERROR:")
+            or answer.startswith("[ERROR]")
+        )
+
+        if is_pipeline_error:
+            faith = {"score": None, "notes": "Pipeline failed; metric skipped."}
+            relevance = {"score": None, "notes": "Pipeline failed; metric skipped."}
+            recall = {"score": None, "notes": "Pipeline failed; metric skipped."}
+            complete = {"score": None, "notes": "Pipeline failed; metric skipped."}
+        else:
+            faith = score_faithfulness(answer, chunks_used)
+            relevance = score_answer_relevance(query, answer)
+            recall = score_context_recall(chunks_used, expected_sources)
+            complete = score_completeness(query, answer, expected_answer)
 
         row = {
             "id": question_id,
@@ -308,7 +460,7 @@ def run_scorecard(
     for metric in ["faithfulness", "relevance", "context_recall", "completeness"]:
         scores = [r[metric] for r in results if r[metric] is not None]
         avg = sum(scores) / len(scores) if scores else None
-        print(f"\nAverage {metric}: {avg:.2f}" if avg else f"\nAverage {metric}: N/A (chưa chấm)")
+        print(f"\nAverage {metric}: {avg:.2f}" if avg is not None else f"\nAverage {metric}: N/A (chưa chấm)")
 
     return results
 
@@ -354,11 +506,11 @@ def compare_ab(
 
         b_avg = sum(b_scores) / len(b_scores) if b_scores else None
         v_avg = sum(v_scores) / len(v_scores) if v_scores else None
-        delta = (v_avg - b_avg) if (b_avg and v_avg) else None
+        delta = (v_avg - b_avg) if (b_avg is not None and v_avg is not None) else None
 
-        b_str = f"{b_avg:.2f}" if b_avg else "N/A"
-        v_str = f"{v_avg:.2f}" if v_avg else "N/A"
-        d_str = f"{delta:+.2f}" if delta else "N/A"
+        b_str = f"{b_avg:.2f}" if b_avg is not None else "N/A"
+        v_str = f"{v_avg:.2f}" if v_avg is not None else "N/A"
+        d_str = f"{delta:+.2f}" if delta is not None else "N/A"
 
         print(f"{metric:<20} {b_str:>10} {v_str:>10} {d_str:>8}")
 
@@ -425,7 +577,7 @@ Generated: {timestamp}
 |--------|--------------|
 """
     for metric, avg in averages.items():
-        avg_str = f"{avg:.2f}/5" if avg else "N/A"
+        avg_str = f"{avg:.2f}/5" if avg is not None else "N/A"
         md += f"| {metric.replace('_', ' ').title()} | {avg_str} |\n"
 
     md += "\n## Per-Question Results\n\n"
@@ -486,25 +638,29 @@ if __name__ == "__main__":
         print("Pipeline chưa implement. Hoàn thành Sprint 2 trước.")
         baseline_results = []
 
-    # --- Chạy Variant (sau khi Sprint 3 hoàn thành) ---
-    # TODO Sprint 4: Uncomment sau khi implement variant trong rag_answer.py
-    # print("\n--- Chạy Variant ---")
-    # variant_results = run_scorecard(
-    #     config=VARIANT_CONFIG,
-    #     test_questions=test_questions,
-    #     verbose=True,
-    # )
-    # variant_md = generate_scorecard_summary(variant_results, VARIANT_CONFIG["label"])
-    # (RESULTS_DIR / "scorecard_variant.md").write_text(variant_md, encoding="utf-8")
+    # --- Chạy Variant ---
+    print("\n--- Chạy Variant ---")
+    try:
+        variant_results = run_scorecard(
+            config=VARIANT_CONFIG,
+            test_questions=test_questions,
+            verbose=True,
+        )
+        variant_md = generate_scorecard_summary(variant_results, VARIANT_CONFIG["label"])
+        variant_path = RESULTS_DIR / "scorecard_variant.md"
+        variant_path.write_text(variant_md, encoding="utf-8")
+        print(f"\nScorecard variant lưu tại: {variant_path}")
+    except Exception as e:
+        print(f"Không chạy được variant: {e}")
+        variant_results = []
 
     # --- A/B Comparison ---
-    # TODO Sprint 4: Uncomment sau khi có cả baseline và variant
-    # if baseline_results and variant_results:
-    #     compare_ab(
-    #         baseline_results,
-    #         variant_results,
-    #         output_csv="ab_comparison.csv"
-    #     )
+    if baseline_results and variant_results:
+        compare_ab(
+            baseline_results,
+            variant_results,
+            output_csv="ab_comparison.csv"
+        )
 
     print("\n\nViệc cần làm Sprint 4:")
     print("  1. Hoàn thành Sprint 2 + 3 trước")

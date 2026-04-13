@@ -18,7 +18,9 @@
 ```
 
 **Mô tả ngắn gọn:**
-> TODO: Mô tả hệ thống trong 2-3 câu. Nhóm xây gì? Cho ai dùng? Giải quyết vấn đề gì?
+Nhóm xây một trợ lý RAG nội bộ cho khối CS + IT Helpdesk để trả lời các câu hỏi về SLA, hoàn tiền, cấp quyền truy cập, IT FAQ và HR policy.
+Pipeline gồm 3 phần chính: indexing tài liệu có metadata, retrieval theo vector similarity (kèm rerank ở variant), và generation có ràng buộc grounding + citation.
+Mục tiêu là giảm hallucination, tăng khả năng truy xuất đúng nguồn bằng chứng, và cho phép đánh giá chất lượng theo scorecard định lượng.
 
 ---
 
@@ -27,22 +29,22 @@
 ### Tài liệu được index
 | File | Nguồn | Department | Số chunk |
 |------|-------|-----------|---------|
-| `policy_refund_v4.txt` | policy/refund-v4.pdf | CS | TODO |
-| `sla_p1_2026.txt` | support/sla-p1-2026.pdf | IT | TODO |
-| `access_control_sop.txt` | it/access-control-sop.md | IT Security | TODO |
-| `it_helpdesk_faq.txt` | support/helpdesk-faq.md | IT | TODO |
-| `hr_leave_policy.txt` | hr/leave-policy-2026.pdf | HR | TODO |
+| `policy_refund_v4.txt` | policy/refund-v4.pdf | CS | 6 |
+| `sla_p1_2026.txt` | support/sla-p1-2026.pdf | IT | 5 |
+| `access_control_sop.txt` | it/access-control-sop.md | IT Security | 7 |
+| `it_helpdesk_faq.txt` | support/helpdesk-faq.md | IT | 6 |
+| `hr_leave_policy.txt` | hr/leave-policy-2026.pdf | HR | 5 |
 
 ### Quyết định chunking
 | Tham số | Giá trị | Lý do |
 |---------|---------|-------|
-| Chunk size | TODO tokens | TODO |
-| Overlap | TODO tokens | TODO |
-| Chunking strategy | Heading-based / paragraph-based | TODO |
+| Chunk size | 400 tokens (xấp xỉ) | Cân bằng giữa giữ ngữ cảnh điều khoản và tránh context quá dài khi generate |
+| Overlap | 80 tokens (xấp xỉ) | Giảm mất thông tin tại ranh giới chunk, nhất là với câu hỏi cần điều kiện ngoại lệ |
+| Chunking strategy | Heading-based + paragraph-based | Ưu tiên cắt theo section tự nhiên ("=== Section ... ==="), sau đó chia theo paragraph nếu section quá dài |
 | Metadata fields | source, section, effective_date, department, access | Phục vụ filter, freshness, citation |
 
 ### Embedding model
-- **Model**: TODO (OpenAI text-embedding-3-small / paraphrase-multilingual-MiniLM-L12-v2)
+- **Model**: sentence-transformers `paraphrase-multilingual-MiniLM-L12-v2` (local embedding)
 - **Vector store**: ChromaDB (PersistentClient)
 - **Similarity metric**: Cosine
 
@@ -61,15 +63,16 @@
 ### Variant (Sprint 3)
 | Tham số | Giá trị | Thay đổi so với baseline |
 |---------|---------|------------------------|
-| Strategy | TODO (hybrid / dense) | TODO |
-| Top-k search | TODO | TODO |
-| Top-k select | TODO | TODO |
-| Rerank | TODO (cross-encoder / MMR) | TODO |
-| Query transform | TODO (expansion / HyDE / decomposition) | TODO |
+| Strategy | Dense + rerank | Giữ dense retrieval, thêm bước rerank cross-encoder trước khi chọn top-k |
+| Top-k search | 10 | Không đổi |
+| Top-k select | 3 | Không đổi |
+| Rerank | Cross-encoder (`cross-encoder/ms-marco-MiniLM-L-6-v2`) | Bật rerank (`use_rerank=True`) |
+| Query transform | Không dùng | Không đổi query gốc để tuân thủ A/B rule |
 
 **Lý do chọn variant này:**
-> TODO: Giải thích tại sao chọn biến này để tune.
-> Ví dụ: "Chọn hybrid vì corpus có cả câu tự nhiên (policy) lẫn mã lỗi và tên chuyên ngành (SLA ticket P1, ERR-403)."
+Nhóm chọn rerank vì baseline dense thường retrieve đúng nguồn nhưng chưa luôn chọn được thứ tự top-3 tối ưu cho generation.
+Rerank được kỳ vọng cải thiện quality của context đưa vào prompt (đặc biệt completeness/relevance) mà không thay đổi index, chunking hoặc prompt.
+Thiết kế này tuân thủ A/B rule: chỉ đổi đúng một biến là `use_rerank`.
 
 ---
 
@@ -96,7 +99,7 @@ Answer:
 ### LLM Configuration
 | Tham số | Giá trị |
 |---------|---------|
-| Model | TODO (gpt-4o-mini / gemini-1.5-flash) |
+| Model | gpt-4o-mini (OpenAI) |
 | Temperature | 0 (để output ổn định cho eval) |
 | Max tokens | 512 |
 
@@ -118,7 +121,7 @@ Answer:
 
 ## 6. Diagram (tùy chọn)
 
-> TODO: Vẽ sơ đồ pipeline nếu có thời gian. Có thể dùng Mermaid hoặc drawio.
+Sơ đồ pipeline hiện tại:
 
 ```mermaid
 graph LR
