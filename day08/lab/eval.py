@@ -39,7 +39,7 @@ except Exception:
 # CẤU HÌNH
 # =============================================================================
 
-TEST_QUESTIONS_PATH = Path(__file__).parent / "data" / "test_questions.json"
+TEST_QUESTIONS_PATH = Path(__file__).parent / "data" / "grading_question.json"
 RESULTS_DIR = Path(__file__).parent / "results"
 
 # Cấu hình baseline (Sprint 2)

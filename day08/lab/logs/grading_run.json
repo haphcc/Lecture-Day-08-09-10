@@ -1,0 +1,123 @@
+[
+  {
+    "id": "gq01",
+    "question": "SLA xử lý ticket P1 đã thay đổi như thế nào so với phiên bản trước?",
+    "answer": "SLA xử lý ticket P1 đã thay đổi từ 6 giờ xuống 4 giờ so với phiên bản trước [1].",
+    "sources": [
+      "support/sla-p1-2026.pdf"
+    ],
+    "chunks_retrieved": 3,
+    "retrieval_mode": "dense",
+    "timestamp": "2026-04-13T17:38:35.335383"
+  },
+  {
+    "id": "gq02",
+    "question": "Khi làm việc remote, tôi phải dùng VPN và được kết nối trên tối đa bao nhiêu thiết bị?",
+    "answer": "Khi làm việc remote, bạn phải sử dụng VPN và được kết nối trên tối đa 2 thiết bị cùng lúc [1].",
+    "sources": [
+      "support/helpdesk-faq.md",
+      "hr/leave-policy-2026.pdf"
+    ],
+    "chunks_retrieved": 3,
+    "retrieval_mode": "dense",
+    "timestamp": "2026-04-13T17:38:36.758739"
+  },
+  {
+    "id": "gq03",
+    "question": "Đơn hàng mua trong chương trình Flash Sale và đã được hoàn tiền khoảng ngày 3?",
+    "answer": "Thông tin này không có trong tài liệu được cung cấp.",
+    "sources": [
+      "support/helpdesk-faq.md",
+      "policy/refund-v4.pdf"
+    ],
+    "chunks_retrieved": 3,
+    "retrieval_mode": "dense",
+    "timestamp": "2026-04-13T17:38:38.295172"
+  },
+  {
+    "id": "gq04",
+    "question": "Nếu chọn nhận store credit thay vì hoàn tiền, tôi được bao nhiêu phần trăm so với số tiền gốc?",
+    "answer": "Nếu bạn chọn nhận store credit thay vì hoàn tiền, bạn sẽ nhận được giá trị 110% so với số tiền gốc [1].",
+    "sources": [
+      "hr/leave-policy-2026.pdf",
+      "policy/refund-v4.pdf"
+    ],
+    "chunks_retrieved": 3,
+    "retrieval_mode": "dense",
+    "timestamp": "2026-04-13T17:38:39.757710"
+  },
+  {
+    "id": "gq05",
+    "question": "Contractor từ bên ngoài công ty có thể được cấp quyền Admin Access không? Nếu có, cần bao nhiêu ngày và có yêu cầu đặc biệt gì?",
+    "answer": "Thông tin này không có trong tài liệu được cung cấp.",
+    "sources": [
+      "policy/refund-v4.pdf",
+      "hr/leave-policy-2026.pdf",
+      "it/access-control-sop.md"
+    ],
+    "chunks_retrieved": 3,
+    "retrieval_mode": "dense",
+    "timestamp": "2026-04-13T17:38:40.941297"
+  },
+  {
+    "id": "gq06",
+    "question": "Úc 2 giờ sáng xảy ra sự cố P1, on-call engineer cần làm gì đầu tiên và quy trình này tồn tại bao lâu?",
+    "answer": "On-call engineer cần tiếp nhận alert hoặc ticket và xác nhận severity trong vòng 5 phút đầu tiên sau khi sự cố P1 xảy ra [2]. Quy trình này tồn tại trong 4 giờ để xử lý và khắc phục sự cố [3].",
+    "sources": [
+      "support/sla-p1-2026.pdf",
+      "it/access-control-sop.md"
+    ],
+    "chunks_retrieved": 3,
+    "retrieval_mode": "dense",
+    "timestamp": "2026-04-13T17:38:42.683930"
+  },
+  {
+    "id": "gq07",
+    "question": "Công ty anh phát bảo hiểm đầu từ phần cấp mức định mức từ P1 nhưng có yêu cầu đặc biệt gì không?",
+    "answer": "Thông tin này không có trong tài liệu được cung cấp.",
+    "sources": [
+      "support/sla-p1-2026.pdf",
+      "policy/refund-v4.pdf",
+      "it/access-control-sop.md"
+    ],
+    "chunks_retrieved": 3,
+    "retrieval_mode": "dense",
+    "timestamp": "2026-04-13T17:38:43.823374"
+  },
+  {
+    "id": "gq08",
+    "question": "Nhân viên phải báo trước bao nhiêu ngày để xin nghỉ phép nằm? Con số này có giống với số ngày cần giấy từ khi nghỉ ốm không?",
+    "answer": "Nhân viên phải báo trước ít nhất 3 ngày làm việc để xin nghỉ phép năm [3]. Trong khi đó, khi nghỉ ốm trên 3 ngày liên tiếp, cần có giấy tờ y tế từ bệnh viện [1]. Do đó, con số này không giống nhau.",
+    "sources": [
+      "hr/leave-policy-2026.pdf",
+      "it/access-control-sop.md"
+    ],
+    "chunks_retrieved": 3,
+    "retrieval_mode": "dense",
+    "timestamp": "2026-04-13T17:38:45.874786"
+  },
+  {
+    "id": "gq09",
+    "question": "Mật khẩu tài khoản công ty cần đổi định kỳ không? Nếu có, hộ thống sẽ nhắc nhở trước bao nhiêu ngày và đối qua đầu?",
+    "answer": "Có, mật khẩu tài khoản công ty cần được thay đổi định kỳ mỗi 90 ngày. Hệ thống sẽ nhắc nhở 7 ngày trước khi hết hạn [1].",
+    "sources": [
+      "support/helpdesk-faq.md",
+      "hr/leave-policy-2026.pdf",
+      "it/access-control-sop.md"
+    ],
+    "chunks_retrieved": 3,
+    "retrieval_mode": "dense",
+    "timestamp": "2026-04-13T17:38:47.511278"
+  },
+  {
+    "id": "gq10",
+    "question": "Chính sách hoàn tiền hiệu lực từ áp dụng cho đơn hàng đặt trước ngày 01/02/2026 không?",
+    "answer": "Chính sách hoàn tiền áp dụng cho tất cả các đơn hàng được đặt trên hệ thống nội bộ kể từ ngày 01/02/2026. Các đơn hàng đặt trước ngày có hiệu lực sẽ áp dụng theo chính sách hoàn tiền phiên bản 3 [1].",
+    "sources": [
+      "policy/refund-v4.pdf"
+    ],
+    "chunks_retrieved": 3,
+    "retrieval_mode": "dense",
+    "timestamp": "2026-04-13T17:38:49.163147"
+  }
+]
