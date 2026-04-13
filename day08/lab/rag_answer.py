@@ -51,6 +51,31 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
 _CROSS_ENCODER_MODEL = None
 
 
+def _load_cross_encoder_model():
+    """
+    Load the cross-encoder once.
+
+    Strategy:
+      1. Try local cache first for offline runs.
+      2. If not cached, try downloading once.
+      3. Return None only if both attempts fail.
+    """
+    from sentence_transformers import CrossEncoder
+
+    model_name = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+
+    try:
+        return CrossEncoder(model_name, local_files_only=True)
+    except Exception:
+        pass
+
+    try:
+        return CrossEncoder(model_name)
+    except Exception as e:
+        print(f"[rerank] Không load được model '{model_name}' cả local lẫn online: {e}")
+        return None
+
+
 # =============================================================================
 # EMBEDDING — dùng chung hàm từ index.py (local sentence-transformers)
 # =============================================================================
@@ -214,14 +239,9 @@ def rerank(
     # Load model một lần duy nhất (cache)
     if _CROSS_ENCODER_MODEL is None:
         print("[rerank] Đang load Cross-Encoder model lần đầu...")
-        try:
-            # local_files_only=True để tránh treo mạng trong môi trường lab hạn chế internet.
-            _CROSS_ENCODER_MODEL = CrossEncoder(
-                "cross-encoder/ms-marco-MiniLM-L-6-v2",
-                local_files_only=True,
-            )
-        except Exception as e:
-            print(f"[rerank] Không load được model local ({e}). Fallback: dùng dense top-k.")
+        _CROSS_ENCODER_MODEL = _load_cross_encoder_model()
+        if _CROSS_ENCODER_MODEL is None:
+            print("[rerank] Fallback: dùng dense top-k.")
             return candidates[:top_k]
 
     # Tạo pairs (query, chunk_text) để chấm
