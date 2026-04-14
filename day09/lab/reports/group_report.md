@@ -5,7 +5,7 @@
 | Tên | Vai trò | Email |
 |-----|---------|-------|
 | Phuoc | Supervisor Owner, Trace & Docs Owner | phuocha@outlook.com |
-| ___ | Worker Owner |  |
+| Huyen | Worker Owner | nguyennguyen200455@gmail.com |
 | Hoai | MCP Owner, Trace & Docs Owner | hoaihanh2501@gmail.com |
 
 **Ngày nộp:** 2026-04-14  
