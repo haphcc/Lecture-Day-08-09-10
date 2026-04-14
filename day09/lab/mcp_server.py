@@ -32,6 +32,7 @@ import os
 import json
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+import re
 
 
 # ─────────────────────────────────────────────
@@ -132,19 +133,123 @@ TOOL_SCHEMAS = {
 # Tool Implementations
 # ─────────────────────────────────────────────
 
+def _tokenize(text: str) -> set:
+    """Tokenize text đơn giản cho lexical fallback search."""
+    return set(re.findall(r"[a-zA-Z0-9_]+", text.lower()))
+
+
+def _normalize_top_k(top_k: Any, default: int = 3, max_k: int = 10) -> int:
+    """Chuẩn hóa top_k để tránh input xấu làm lỗi tool."""
+    if not isinstance(top_k, int):
+        return default
+    if top_k < 1:
+        return 1
+    return min(top_k, max_k)
+
+
+def _simple_kb_search(query: str, top_k: int) -> dict:
+    """
+    Fallback lexical search từ data/docs khi Chroma chưa sẵn sàng hoặc không có kết quả.
+    """
+    docs_dir = "./data/docs"
+    if not os.path.isdir(docs_dir):
+        return {
+            "chunks": [],
+            "sources": [],
+            "total_found": 0,
+            "error": f"Không tìm thấy docs dir: {docs_dir}",
+        }
+
+    q_tokens = _tokenize(query)
+    ranked = []
+
+    for fname in os.listdir(docs_dir):
+        fpath = os.path.join(docs_dir, fname)
+        if not os.path.isfile(fpath) or not fname.endswith(".txt"):
+            continue
+
+        try:
+            with open(fpath, "r", encoding="utf-8") as f:
+                text = f.read().strip()
+        except UnicodeDecodeError:
+            with open(fpath, "r", encoding="latin-1", errors="ignore") as f:
+                text = f.read().strip()
+
+        if not text:
+            continue
+
+        d_tokens = _tokenize(text)
+        overlap = len(q_tokens & d_tokens)
+        score = round(overlap / max(1, len(q_tokens)), 4)
+        if score <= 0:
+            continue
+
+        ranked.append({
+            "text": text[:1400],
+            "source": fname,
+            "score": score,
+            "metadata": {"retrieval_mode": "mcp_lexical_fallback"},
+        })
+
+    ranked.sort(key=lambda x: x["score"], reverse=True)
+    chunks = ranked[:top_k]
+    return {
+        "chunks": chunks,
+        "sources": list({c["source"] for c in chunks}),
+        "total_found": len(chunks),
+    }
+
+
+def _validate_tool_input(tool_name: str, tool_input: dict) -> Optional[dict]:
+    """Validate required fields + primitive types theo TOOL_SCHEMAS."""
+    schema = TOOL_SCHEMAS.get(tool_name, {}).get("inputSchema", {})
+    required_fields = schema.get("required", [])
+    props = schema.get("properties", {})
+
+    missing = [k for k in required_fields if k not in tool_input]
+    if missing:
+        return {
+            "error": f"Missing required fields for '{tool_name}': {missing}",
+            "schema": schema,
+        }
+
+    type_map = {
+        "string": str,
+        "integer": int,
+        "boolean": bool,
+    }
+    for key, rule in props.items():
+        if key not in tool_input:
+            continue
+        expected = rule.get("type")
+        py_type = type_map.get(expected)
+        if py_type and not isinstance(tool_input[key], py_type):
+            return {
+                "error": (
+                    f"Invalid type for '{key}' in '{tool_name}': "
+                    f"expected {expected}, got {type(tool_input[key]).__name__}"
+                ),
+                "schema": schema,
+            }
+
+    return None
+
 def tool_search_kb(query: str, top_k: int = 3) -> dict:
     """
     Tìm kiếm Knowledge Base bằng semantic search.
 
-    TODO Sprint 3: Kết nối với ChromaDB thực.
-    Hiện tại: Delegate sang retrieval worker.
+    Ưu tiên query qua retrieval worker (ChromaDB/index có sẵn từ Day 08).
+    Nếu không có kết quả hoặc Chroma lỗi thì fallback lexical search từ data/docs.
     """
+    top_k = _normalize_top_k(top_k)
     try:
         # Tái dùng retrieval logic từ workers/retrieval.py
         import sys
         sys.path.insert(0, os.path.dirname(__file__))
         from workers.retrieval import retrieve_dense
         chunks = retrieve_dense(query, top_k=top_k)
+        if not chunks:
+            return _simple_kb_search(query, top_k)
         sources = list({c["source"] for c in chunks})
         return {
             "chunks": chunks,
@@ -152,18 +257,9 @@ def tool_search_kb(query: str, top_k: int = 3) -> dict:
             "total_found": len(chunks),
         }
     except Exception as e:
-        # Fallback: return mock data nếu ChromaDB chưa setup
-        return {
-            "chunks": [
-                {
-                    "text": f"[MOCK] Không thể query ChromaDB: {e}. Kết quả giả lập.",
-                    "source": "mock_data",
-                    "score": 0.5,
-                }
-            ],
-            "sources": ["mock_data"],
-            "total_found": 1,
-        }
+        fallback = _simple_kb_search(query, top_k)
+        fallback["fallback_reason"] = f"chroma_unavailable: {e}"
+        return fallback
 
 
 # Mock ticket database
@@ -311,6 +407,10 @@ def dispatch_tool(tool_name: str, tool_input: dict) -> dict:
         return {
             "error": f"Tool '{tool_name}' không tồn tại. Available: {list(TOOL_REGISTRY.keys())}"
         }
+
+    validation_error = _validate_tool_input(tool_name, tool_input)
+    if validation_error:
+        return validation_error
 
     tool_fn = TOOL_REGISTRY[tool_name]
     try:
