@@ -25,6 +25,8 @@ Gọi độc lập để test:
 import os
 import sys
 from typing import Optional
+import json
+from urllib.request import Request, urlopen
 from dotenv import load_dotenv
 
 # Load biến môi trường từ .env
@@ -47,8 +49,30 @@ def _call_mcp_tool(tool_name: str, tool_input: dict) -> dict:
     """
     from datetime import datetime
 
+    server_url = os.getenv("MCP_SERVER_URL", "").rstrip("/")
+
+    if server_url:
+        try:
+            request = Request(
+                f"{server_url}/tools/call",
+                data=json.dumps({"tool_name": tool_name, "tool_input": tool_input}).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urlopen(request, timeout=20) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            return {
+                "tool": tool_name,
+                "input": tool_input,
+                "output": payload.get("result"),
+                "error": None,
+                "transport": "http",
+                "timestamp": datetime.now().isoformat(),
+            }
+        except Exception as e:
+            print(f"[policy_tool] HTTP MCP call failed: {e}")
+
     try:
-        # TODO Sprint 3: Thay bằng real MCP client nếu dùng HTTP server
         from mcp_server import dispatch_tool
         result = dispatch_tool(tool_name, tool_input)
         return {
@@ -56,6 +80,7 @@ def _call_mcp_tool(tool_name: str, tool_input: dict) -> dict:
             "input": tool_input,
             "output": result,
             "error": None,
+            "transport": "in_process",
             "timestamp": datetime.now().isoformat(),
         }
     except Exception as e:
@@ -64,6 +89,7 @@ def _call_mcp_tool(tool_name: str, tool_input: dict) -> dict:
             "input": tool_input,
             "output": None,
             "error": {"code": "MCP_CALL_FAILED", "reason": str(e)},
+            "transport": "in_process",
             "timestamp": datetime.now().isoformat(),
         }
 
@@ -267,6 +293,8 @@ def run(state: dict) -> dict:
     state.setdefault("workers_called", [])
     state.setdefault("history", [])
     state.setdefault("mcp_tools_used", [])
+    state.setdefault("mcp_tool_called", [])
+    state.setdefault("mcp_result", [])
 
     state["workers_called"].append(WORKER_NAME)
 
@@ -286,6 +314,8 @@ def run(state: dict) -> dict:
         if not chunks and needs_tool:
             mcp_result = _call_mcp_tool("search_kb", {"query": task, "top_k": 3})
             state["mcp_tools_used"].append(mcp_result)
+            state["mcp_tool_called"].append("search_kb")
+            state["mcp_result"].append(mcp_result)
             state["history"].append(f"[{WORKER_NAME}] called MCP search_kb")
 
             if mcp_result.get("output") and mcp_result["output"].get("chunks"):
@@ -300,6 +330,8 @@ def run(state: dict) -> dict:
         if needs_tool and any(kw in task.lower() for kw in ["ticket", "p1", "jira"]):
             mcp_result = _call_mcp_tool("get_ticket_info", {"ticket_id": "P1-LATEST"})
             state["mcp_tools_used"].append(mcp_result)
+            state["mcp_tool_called"].append("get_ticket_info")
+            state["mcp_result"].append(mcp_result)
             state["history"].append(f"[{WORKER_NAME}] called MCP get_ticket_info")
 
         worker_io["output"] = {

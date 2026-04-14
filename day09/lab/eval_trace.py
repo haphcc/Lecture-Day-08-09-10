@@ -139,6 +139,8 @@ def run_grading_questions(questions_file: str = "data/grading_questions.json") -
                     "route_reason": result.get("route_reason", ""),
                     "workers_called": result.get("workers_called", []),
                     "mcp_tools_used": [t.get("tool") for t in result.get("mcp_tools_used", [])],
+                    "mcp_tool_called": result.get("mcp_tool_called", []),
+                    "mcp_result": result.get("mcp_result", []),
                     "confidence": result.get("confidence", 0.0),
                     "hitl_triggered": result.get("hitl_triggered", False),
                     "latency_ms": result.get("latency_ms"),
@@ -155,6 +157,8 @@ def run_grading_questions(questions_file: str = "data/grading_questions.json") -
                     "route_reason": str(e),
                     "workers_called": [],
                     "mcp_tools_used": [],
+                    "mcp_tool_called": [],
+                    "mcp_result": [],
                     "confidence": 0.0,
                     "hitl_triggered": False,
                     "latency_ms": None,
@@ -225,7 +229,7 @@ def analyze_traces(traces_dir: str = "artifacts/traces") -> dict:
         if lat:
             latencies.append(lat)
 
-        if t.get("mcp_tools_used"):
+        if t.get("mcp_tools_used") or t.get("mcp_tool_called"):
             mcp_calls += 1
 
         if t.get("hitl_triggered"):

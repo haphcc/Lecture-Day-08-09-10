@@ -1,6 +1,6 @@
 {
   "task": "Nhân viên được làm remote tối đa mấy ngày mỗi tuần?",
-  "route_reason": "default fallback to retrieval_worker | mcp=no",
+  "route_reason": "default fallback to retrieval_worker | không chọn MCP",
   "risk_high": false,
   "needs_tool": false,
   "hitl_triggered": true,
@@ -32,33 +32,35 @@
   ],
   "retrieved_sources": [
     "it_helpdesk_faq.txt",
-    "sla_p1_2026.txt",
-    "hr_leave_policy.txt"
+    "hr_leave_policy.txt",
+    "sla_p1_2026.txt"
   ],
   "policy_result": {},
   "mcp_tools_used": [],
-  "final_answer": "Nhân viên có thể làm remote tối đa 2 ngày mỗi tuần, sau khi hoàn thành probation period. Lịch remote cần được phê duyệt bởi Team Lead qua HR Portal. Ngày onsite bắt buộc là thứ 3 và thứ 5 [hr_leave_policy.txt].\n\nĐộ tin cậy: CAO — Thông tin được cung cấp rõ ràng trong tài liệu.",
+  "mcp_tool_called": [],
+  "mcp_result": [],
+  "final_answer": "Nhân viên có thể làm remote tối đa 2 ngày mỗi tuần, sau khi hoàn thành probation period. Lịch remote phải được phê duyệt bởi Team Lead qua HR Portal. Ngày onsite bắt buộc là Thứ 3 và Thứ 5 [hr_leave_policy.txt].\n\nĐộ tin cậy: CAO — Thông tin rõ ràng và cụ thể từ tài liệu nội bộ.",
   "sources": [
     "it_helpdesk_faq.txt",
-    "sla_p1_2026.txt",
-    "hr_leave_policy.txt"
+    "hr_leave_policy.txt",
+    "sla_p1_2026.txt"
   ],
   "confidence": 0.1,
   "history": [
     "[supervisor] received task: Nhân viên được làm remote tối đa mấy ngày mỗi tuần?",
-    "[supervisor] route=retrieval_worker reason=default fallback to retrieval_worker | mcp=no",
-    "[retrieval_worker] retrieved 3 chunks from ['it_helpdesk_faq.txt', 'sla_p1_2026.txt', 'hr_leave_policy.txt']",
+    "[supervisor] route=retrieval_worker reason=default fallback to retrieval_worker | không chọn MCP",
+    "[retrieval_worker] retrieved 3 chunks from ['it_helpdesk_faq.txt', 'hr_leave_policy.txt', 'sla_p1_2026.txt']",
     "[synthesis_worker] ⚠️ HITL triggered: confidence=0.1 < 0.4",
-    "[synthesis_worker] answer generated, confidence=0.1, sources=['it_helpdesk_faq.txt', 'sla_p1_2026.txt', 'hr_leave_policy.txt'], hitl=True",
-    "[graph] completed in 8027ms"
+    "[synthesis_worker] answer generated, confidence=0.1, sources=['it_helpdesk_faq.txt', 'hr_leave_policy.txt', 'sla_p1_2026.txt'], hitl=True",
+    "[graph] completed in 8030ms"
   ],
   "workers_called": [
     "retrieval_worker",
     "synthesis_worker"
   ],
   "supervisor_route": "retrieval_worker",
-  "latency_ms": 8027,
-  "run_id": "run_20260414_152604_734160_e8f699",
+  "latency_ms": 8030,
+  "run_id": "run_20260414_160140_812669_fbb892",
   "worker_io_logs": [
     {
       "worker": "retrieval_worker",
@@ -70,8 +72,8 @@
         "chunks_count": 3,
         "sources": [
           "it_helpdesk_faq.txt",
-          "sla_p1_2026.txt",
-          "hr_leave_policy.txt"
+          "hr_leave_policy.txt",
+          "sla_p1_2026.txt"
         ]
       },
       "error": null
@@ -84,11 +86,11 @@
         "has_policy": false
       },
       "output": {
-        "answer_length": 277,
+        "answer_length": 278,
         "sources": [
           "it_helpdesk_faq.txt",
-          "sla_p1_2026.txt",
-          "hr_leave_policy.txt"
+          "hr_leave_policy.txt",
+          "sla_p1_2026.txt"
         ],
         "confidence": 0.1,
         "hitl_triggered": true

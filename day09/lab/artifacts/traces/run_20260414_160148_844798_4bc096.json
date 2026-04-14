@@ -1,6 +1,6 @@
 {
   "task": "Ticket P1 không được phản hồi sau 10 phút. Hệ thống tự động làm gì?",
-  "route_reason": "task contains P1/escalation/SLA/ticket signal | mcp=no",
+  "route_reason": "task contains P1/escalation/SLA/ticket signal | không chọn MCP",
   "risk_high": false,
   "needs_tool": false,
   "hitl_triggered": true,
@@ -32,33 +32,35 @@
   ],
   "retrieved_sources": [
     "it_helpdesk_faq.txt",
-    "policy_refund_v4.txt",
-    "sla_p1_2026.txt"
+    "sla_p1_2026.txt",
+    "policy_refund_v4.txt"
   ],
   "policy_result": {},
   "mcp_tools_used": [],
-  "final_answer": "Nếu Ticket P1 không được phản hồi sau 10 phút, hệ thống sẽ tự động escalate lên Senior Engineer [sla_p1_2026.txt].\n\nĐộ tin cậy: CAO — Thông tin rõ ràng từ tài liệu.",
+  "mcp_tool_called": [],
+  "mcp_result": [],
+  "final_answer": "Khi Ticket P1 không được phản hồi sau 10 phút, hệ thống sẽ tự động escalate lên Senior Engineer [sla_p1_2026.txt]. \n\nĐộ tin cậy: CAO — Thông tin rõ ràng từ tài liệu nội bộ.",
   "sources": [
     "it_helpdesk_faq.txt",
-    "policy_refund_v4.txt",
-    "sla_p1_2026.txt"
+    "sla_p1_2026.txt",
+    "policy_refund_v4.txt"
   ],
   "confidence": 0.13,
   "history": [
     "[supervisor] received task: Ticket P1 không được phản hồi sau 10 phút. Hệ thống tự động làm gì?",
-    "[supervisor] route=retrieval_worker reason=task contains P1/escalation/SLA/ticket signal | mcp=no",
-    "[retrieval_worker] retrieved 3 chunks from ['it_helpdesk_faq.txt', 'policy_refund_v4.txt', 'sla_p1_2026.txt']",
+    "[supervisor] route=retrieval_worker reason=task contains P1/escalation/SLA/ticket signal | không chọn MCP",
+    "[retrieval_worker] retrieved 3 chunks from ['it_helpdesk_faq.txt', 'sla_p1_2026.txt', 'policy_refund_v4.txt']",
     "[synthesis_worker] ⚠️ HITL triggered: confidence=0.13 < 0.4",
-    "[synthesis_worker] answer generated, confidence=0.13, sources=['it_helpdesk_faq.txt', 'policy_refund_v4.txt', 'sla_p1_2026.txt'], hitl=True",
-    "[graph] completed in 7450ms"
+    "[synthesis_worker] answer generated, confidence=0.13, sources=['it_helpdesk_faq.txt', 'sla_p1_2026.txt', 'policy_refund_v4.txt'], hitl=True",
+    "[graph] completed in 7835ms"
   ],
   "workers_called": [
     "retrieval_worker",
     "synthesis_worker"
   ],
   "supervisor_route": "retrieval_worker",
-  "latency_ms": 7450,
-  "run_id": "run_20260414_152612_763426_5e33c4",
+  "latency_ms": 7835,
+  "run_id": "run_20260414_160148_844798_4bc096",
   "worker_io_logs": [
     {
       "worker": "retrieval_worker",
@@ -70,8 +72,8 @@
         "chunks_count": 3,
         "sources": [
           "it_helpdesk_faq.txt",
-          "policy_refund_v4.txt",
-          "sla_p1_2026.txt"
+          "sla_p1_2026.txt",
+          "policy_refund_v4.txt"
         ]
       },
       "error": null
@@ -84,11 +86,11 @@
         "has_policy": false
       },
       "output": {
-        "answer_length": 164,
+        "answer_length": 172,
         "sources": [
           "it_helpdesk_faq.txt",
-          "policy_refund_v4.txt",
-          "sla_p1_2026.txt"
+          "sla_p1_2026.txt",
+          "policy_refund_v4.txt"
         ],
         "confidence": 0.13,
         "hitl_triggered": true

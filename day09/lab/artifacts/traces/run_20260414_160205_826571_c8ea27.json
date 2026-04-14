@@ -1,6 +1,6 @@
 {
   "task": "Quy trình xử lý sự cố P1 gồm mấy bước và bước đầu tiên là gì?",
-  "route_reason": "task contains P1/escalation/SLA/ticket signal | mcp=no",
+  "route_reason": "task contains P1/escalation/SLA/ticket signal | không chọn MCP",
   "risk_high": false,
   "needs_tool": false,
   "hitl_triggered": true,
@@ -31,34 +31,36 @@
     }
   ],
   "retrieved_sources": [
+    "hr_leave_policy.txt",
     "access_control_sop.txt",
-    "policy_refund_v4.txt",
-    "hr_leave_policy.txt"
+    "policy_refund_v4.txt"
   ],
   "policy_result": {},
   "mcp_tools_used": [],
-  "final_answer": "Không tìm thấy thông tin này trong tài liệu nội bộ. Vui lòng liên hệ CS team để xác nhận.  \nĐộ tin cậy: THẤP — Không có thông tin liên quan đến quy trình xử lý sự cố P1 trong tài liệu.",
+  "mcp_tool_called": [],
+  "mcp_result": [],
+  "final_answer": "Không tìm thấy thông tin này trong tài liệu nội bộ. Vui lòng liên hệ CS team để xác nhận.  \nĐộ tin cậy: THẤP — Không có thông tin về quy trình xử lý sự cố P1 trong tài liệu.",
   "sources": [
+    "hr_leave_policy.txt",
     "access_control_sop.txt",
-    "policy_refund_v4.txt",
-    "hr_leave_policy.txt"
+    "policy_refund_v4.txt"
   ],
   "confidence": 0.25,
   "history": [
     "[supervisor] received task: Quy trình xử lý sự cố P1 gồm mấy bước và bước đầu tiên là gì?",
-    "[supervisor] route=retrieval_worker reason=task contains P1/escalation/SLA/ticket signal | mcp=no",
-    "[retrieval_worker] retrieved 3 chunks from ['access_control_sop.txt', 'policy_refund_v4.txt', 'hr_leave_policy.txt']",
+    "[supervisor] route=retrieval_worker reason=task contains P1/escalation/SLA/ticket signal | không chọn MCP",
+    "[retrieval_worker] retrieved 3 chunks from ['hr_leave_policy.txt', 'access_control_sop.txt', 'policy_refund_v4.txt']",
     "[synthesis_worker] ⚠️ HITL triggered: confidence=0.25 < 0.4",
-    "[synthesis_worker] answer generated, confidence=0.25, sources=['access_control_sop.txt', 'policy_refund_v4.txt', 'hr_leave_policy.txt'], hitl=True",
-    "[graph] completed in 7511ms"
+    "[synthesis_worker] answer generated, confidence=0.25, sources=['hr_leave_policy.txt', 'access_control_sop.txt', 'policy_refund_v4.txt'], hitl=True",
+    "[graph] completed in 7875ms"
   ],
   "workers_called": [
     "retrieval_worker",
     "synthesis_worker"
   ],
   "supervisor_route": "retrieval_worker",
-  "latency_ms": 7511,
-  "run_id": "run_20260414_152628_652094_ac4f42",
+  "latency_ms": 7875,
+  "run_id": "run_20260414_160205_826571_c8ea27",
   "worker_io_logs": [
     {
       "worker": "retrieval_worker",
@@ -69,9 +71,9 @@
       "output": {
         "chunks_count": 3,
         "sources": [
+          "hr_leave_policy.txt",
           "access_control_sop.txt",
-          "policy_refund_v4.txt",
-          "hr_leave_policy.txt"
+          "policy_refund_v4.txt"
         ]
       },
       "error": null
@@ -84,11 +86,11 @@
         "has_policy": false
       },
       "output": {
-        "answer_length": 184,
+        "answer_length": 173,
         "sources": [
+          "hr_leave_policy.txt",
           "access_control_sop.txt",
-          "policy_refund_v4.txt",
-          "hr_leave_policy.txt"
+          "policy_refund_v4.txt"
         ],
         "confidence": 0.25,
         "hitl_triggered": true

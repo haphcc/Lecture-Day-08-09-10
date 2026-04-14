@@ -43,6 +43,8 @@ class AgentState(TypedDict):
     retrieved_sources: list             # Danh sách nguồn tài liệu
     policy_result: dict                 # Output từ policy_tool_worker
     mcp_tools_used: list                # Danh sách MCP tools đã gọi
+    mcp_tool_called: list               # Alias trace theo rubric
+    mcp_result: list                    # Alias trace theo rubric
 
     # Final output
     final_answer: str                   # Câu trả lời tổng hợp
@@ -69,6 +71,8 @@ def make_initial_state(task: str) -> AgentState:
         "retrieved_sources": [],
         "policy_result": {},
         "mcp_tools_used": [],
+        "mcp_tool_called": [],
+        "mcp_result": [],
         "final_answer": "",
         "sources": [],
         "confidence": 0.0,
@@ -144,7 +148,10 @@ def supervisor_node(state: AgentState) -> AgentState:
         route_reason = "unknown ERR code with low context -> human review"
         risk_high = True
 
-    route_reason += f" | mcp={'yes' if needs_tool else 'no'}"
+    if needs_tool:
+        route_reason += " | chọn MCP"
+    else:
+        route_reason += " | không chọn MCP"
 
     state["supervisor_route"] = route
     state["route_reason"] = route_reason

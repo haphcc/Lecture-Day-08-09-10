@@ -1,6 +1,6 @@
 {
   "task": "Tài khoản bị khóa sau bao nhiêu lần đăng nhập sai?",
-  "route_reason": "default fallback to retrieval_worker | mcp=no",
+  "route_reason": "default fallback to retrieval_worker | không chọn MCP",
   "risk_high": false,
   "needs_tool": false,
   "hitl_triggered": true,
@@ -32,33 +32,35 @@
   ],
   "retrieved_sources": [
     "it_helpdesk_faq.txt",
-    "policy_refund_v4.txt",
-    "hr_leave_policy.txt"
+    "hr_leave_policy.txt",
+    "policy_refund_v4.txt"
   ],
   "policy_result": {},
   "mcp_tools_used": [],
+  "mcp_tool_called": [],
+  "mcp_result": [],
   "final_answer": "Tài khoản bị khóa sau 5 lần đăng nhập sai liên tiếp. Để mở khóa, bạn có thể liên hệ IT Helpdesk hoặc tự reset qua portal SSO [it_helpdesk_faq.txt].\n\nĐộ tin cậy: CAO — Thông tin rõ ràng và cụ thể trong tài liệu.",
   "sources": [
     "it_helpdesk_faq.txt",
-    "policy_refund_v4.txt",
-    "hr_leave_policy.txt"
+    "hr_leave_policy.txt",
+    "policy_refund_v4.txt"
   ],
   "confidence": 0.11,
   "history": [
     "[supervisor] received task: Tài khoản bị khóa sau bao nhiêu lần đăng nhập sai?",
-    "[supervisor] route=retrieval_worker reason=default fallback to retrieval_worker | mcp=no",
-    "[retrieval_worker] retrieved 3 chunks from ['it_helpdesk_faq.txt', 'policy_refund_v4.txt', 'hr_leave_policy.txt']",
+    "[supervisor] route=retrieval_worker reason=default fallback to retrieval_worker | không chọn MCP",
+    "[retrieval_worker] retrieved 3 chunks from ['it_helpdesk_faq.txt', 'hr_leave_policy.txt', 'policy_refund_v4.txt']",
     "[synthesis_worker] ⚠️ HITL triggered: confidence=0.11 < 0.4",
-    "[synthesis_worker] answer generated, confidence=0.11, sources=['it_helpdesk_faq.txt', 'policy_refund_v4.txt', 'hr_leave_policy.txt'], hitl=True",
-    "[graph] completed in 8801ms"
+    "[synthesis_worker] answer generated, confidence=0.11, sources=['it_helpdesk_faq.txt', 'hr_leave_policy.txt', 'policy_refund_v4.txt'], hitl=True",
+    "[graph] completed in 8758ms"
   ],
   "workers_called": [
     "retrieval_worker",
     "synthesis_worker"
   ],
   "supervisor_route": "retrieval_worker",
-  "latency_ms": 8801,
-  "run_id": "run_20260414_152555_931321_59372b",
+  "latency_ms": 8758,
+  "run_id": "run_20260414_160132_051034_70600c",
   "worker_io_logs": [
     {
       "worker": "retrieval_worker",
@@ -70,8 +72,8 @@
         "chunks_count": 3,
         "sources": [
           "it_helpdesk_faq.txt",
-          "policy_refund_v4.txt",
-          "hr_leave_policy.txt"
+          "hr_leave_policy.txt",
+          "policy_refund_v4.txt"
         ]
       },
       "error": null
@@ -87,8 +89,8 @@
         "answer_length": 210,
         "sources": [
           "it_helpdesk_faq.txt",
-          "policy_refund_v4.txt",
-          "hr_leave_policy.txt"
+          "hr_leave_policy.txt",
+          "policy_refund_v4.txt"
         ],
         "confidence": 0.11,
         "hitl_triggered": true

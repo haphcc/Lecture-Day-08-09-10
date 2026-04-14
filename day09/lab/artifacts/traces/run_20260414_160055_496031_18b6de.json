@@ -1,6 +1,6 @@
 {
   "task": "SLA xử lý ticket P1 là bao lâu?",
-  "route_reason": "task contains P1/escalation/SLA/ticket signal | mcp=no",
+  "route_reason": "task contains P1/escalation/SLA/ticket signal | không chọn MCP",
   "risk_high": false,
   "needs_tool": false,
   "hitl_triggered": true,
@@ -31,34 +31,36 @@
     }
   ],
   "retrieved_sources": [
-    "policy_refund_v4.txt",
+    "sla_p1_2026.txt",
     "access_control_sop.txt",
-    "sla_p1_2026.txt"
+    "policy_refund_v4.txt"
   ],
   "policy_result": {},
   "mcp_tools_used": [],
+  "mcp_tool_called": [],
+  "mcp_result": [],
   "final_answer": "SLA xử lý ticket P1 là:\n- Phản hồi ban đầu: 15 phút kể từ khi ticket được tạo.\n- Xử lý và khắc phục: 4 giờ [sla_p1_2026.txt].\n\nĐộ tin cậy: CAO — Thông tin được trích dẫn từ tài liệu chính thức.",
   "sources": [
-    "policy_refund_v4.txt",
+    "sla_p1_2026.txt",
     "access_control_sop.txt",
-    "sla_p1_2026.txt"
+    "policy_refund_v4.txt"
   ],
   "confidence": 0.1,
   "history": [
     "[supervisor] received task: SLA xử lý ticket P1 là bao lâu?",
-    "[supervisor] route=retrieval_worker reason=task contains P1/escalation/SLA/ticket signal | mcp=no",
-    "[retrieval_worker] retrieved 3 chunks from ['policy_refund_v4.txt', 'access_control_sop.txt', 'sla_p1_2026.txt']",
+    "[supervisor] route=retrieval_worker reason=task contains P1/escalation/SLA/ticket signal | không chọn MCP",
+    "[retrieval_worker] retrieved 3 chunks from ['sla_p1_2026.txt', 'access_control_sop.txt', 'policy_refund_v4.txt']",
     "[synthesis_worker] ⚠️ HITL triggered: confidence=0.1 < 0.4",
-    "[synthesis_worker] answer generated, confidence=0.1, sources=['policy_refund_v4.txt', 'access_control_sop.txt', 'sla_p1_2026.txt'], hitl=True",
-    "[graph] completed in 14333ms"
+    "[synthesis_worker] answer generated, confidence=0.1, sources=['sla_p1_2026.txt', 'access_control_sop.txt', 'policy_refund_v4.txt'], hitl=True",
+    "[graph] completed in 15011ms"
   ],
   "workers_called": [
     "retrieval_worker",
     "synthesis_worker"
   ],
   "supervisor_route": "retrieval_worker",
-  "latency_ms": 14333,
-  "run_id": "run_20260414_152525_489890_e1e4e4",
+  "latency_ms": 15011,
+  "run_id": "run_20260414_160055_496031_18b6de",
   "worker_io_logs": [
     {
       "worker": "retrieval_worker",
@@ -69,9 +71,9 @@
       "output": {
         "chunks_count": 3,
         "sources": [
-          "policy_refund_v4.txt",
+          "sla_p1_2026.txt",
           "access_control_sop.txt",
-          "sla_p1_2026.txt"
+          "policy_refund_v4.txt"
         ]
       },
       "error": null
@@ -86,9 +88,9 @@
       "output": {
         "answer_length": 193,
         "sources": [
-          "policy_refund_v4.txt",
+          "sla_p1_2026.txt",
           "access_control_sop.txt",
-          "sla_p1_2026.txt"
+          "policy_refund_v4.txt"
         ],
         "confidence": 0.1,
         "hitl_triggered": true

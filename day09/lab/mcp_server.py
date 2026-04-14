@@ -33,6 +33,8 @@ import json
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 import re
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlparse
 
 
 # ─────────────────────────────────────────────
@@ -427,11 +429,74 @@ def dispatch_tool(tool_name: str, tool_input: dict) -> dict:
         }
 
 
+class _MCPRequestHandler(BaseHTTPRequestHandler):
+    def _send_json(self, status_code: int, payload: dict) -> None:
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        self.send_response(status_code)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self):
+        parsed = urlparse(self.path)
+        if parsed.path == "/health":
+            self._send_json(200, {"status": "ok", "service": "mcp_server"})
+            return
+        if parsed.path == "/tools/list":
+            self._send_json(200, {"tools": list_tools()})
+            return
+        self._send_json(404, {"error": "not_found"})
+
+    def do_POST(self):
+        parsed = urlparse(self.path)
+        content_length = int(self.headers.get("Content-Length", "0"))
+        raw_body = self.rfile.read(content_length) if content_length else b"{}"
+        try:
+            body = json.loads(raw_body.decode("utf-8"))
+        except Exception:
+            self._send_json(400, {"error": "invalid_json"})
+            return
+
+        if parsed.path == "/tools/call":
+            tool_name = body.get("tool_name")
+            tool_input = body.get("tool_input", {})
+            self._send_json(200, {"result": dispatch_tool(tool_name, tool_input)})
+            return
+
+        self._send_json(404, {"error": "not_found"})
+
+    def log_message(self, format: str, *args) -> None:
+        return
+
+
+def serve_http(host: str = "127.0.0.1", port: int = 8765) -> None:
+    """Run a lightweight HTTP MCP server for the lab."""
+    server = ThreadingHTTPServer((host, port), _MCPRequestHandler)
+    print(f"🚀 MCP HTTP server listening on http://{host}:{port}")
+    print("   GET  /health")
+    print("   GET  /tools/list")
+    print("   POST /tools/call")
+    server.serve_forever()
+
+
 # ─────────────────────────────────────────────
 # Test & Demo
 # ─────────────────────────────────────────────
 
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Day 09 MCP Server")
+    parser.add_argument("--serve", action="store_true", help="Run HTTP server instead of demo tests")
+    parser.add_argument("--host", default="127.0.0.1", help="HTTP host")
+    parser.add_argument("--port", type=int, default=8765, help="HTTP port")
+    args = parser.parse_args()
+
+    if args.serve:
+        serve_http(args.host, args.port)
+        raise SystemExit(0)
+
     print("=" * 60)
     print("MCP Server — Tool Discovery & Test")
     print("=" * 60)
