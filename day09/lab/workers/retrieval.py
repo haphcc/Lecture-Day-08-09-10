@@ -23,6 +23,8 @@ import os
 import sys
 from dotenv import load_dotenv
 
+# Huyen - Worker owner
+
 # Load biến môi trường từ .env
 load_dotenv()
 

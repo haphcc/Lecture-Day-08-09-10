@@ -19,6 +19,8 @@ Gọi độc lập để test:
 import os
 from dotenv import load_dotenv
 
+# Huyen - Worker owner
+
 # Load biến môi trường từ .env
 load_dotenv()
 
