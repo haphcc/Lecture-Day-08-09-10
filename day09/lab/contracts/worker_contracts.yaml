@@ -8,7 +8,7 @@
 # TODO Sprint 2: Cập nhật "actual_implementation" khi đã implement xong.
 
 version: "1.0"
-updated_at: "2026-04-13"
+updated_at: "2026-04-14"  # Updated Sprint 2 — AI Lead
 
 # ─────────────────────────────────────────────
 # Supervisor
@@ -96,8 +96,13 @@ retrieval_worker:
     - "Score phải là float trong khoảng [0, 1]"
     - "Stateless: không đọc hoặc ghi state ngoài những gì được khai báo ở trên"
   actual_implementation:
-    status: "TODO Sprint 2"  # Update to "done" khi xong
-    notes: ""
+    status: "done"
+    notes: |
+      Dense retrieval via ChromaDB PersistentClient + SentenceTransformer (all-MiniLM-L6-v2).
+      ChromaDB index da duoc build san tai ./chroma_db voi 5 tai lieu noi bo.
+      Query dung cosine similarity, top_k mac dinh = 3.
+      Auto-fallback: neu ChromaDB khong co data -> tra ve [] (khong fake chunks).
+      Worker stateless: chi doc state.task, chi ghi retrieved_chunks, retrieved_sources, worker_io_logs.
 
 # ─────────────────────────────────────────────
 # Policy Tool Worker
@@ -166,8 +171,14 @@ policy_tool_worker:
     - "Phải ghi tên MCP tool đã gọi vào mcp_tools_used"
     - "Không được tự bịa policy rules không có trong tài liệu"
   actual_implementation:
-    status: "TODO Sprint 2"
-    notes: ""
+    status: "done"
+    notes: |
+      Hybrid strategy: Rule-based chay truoc (deterministic, nhanh), LLM bo sung (Gemini hoac GPT).
+      LLM auto-detect: OPENAI_API_KEY (uu tien) -> GOOGLE_API_KEY -> fallback rule-based only.
+      Exceptions duoc detect: flash_sale, digital_product, activated_product,
+        manufacturer_defect_eligible (allows_refund=True), manufacturer_defect_blocked_by_flash_sale.
+      Flash Sale override: du lo nha san xuat, Flash Sale van block hoan tien.
+      Temporal scoping: don hang truoc 01/02/2026 -> policy_version_note -> synthesis abstain.
 
 # ─────────────────────────────────────────────
 # Synthesis Worker
@@ -214,8 +225,14 @@ synthesis_worker:
     - "confidence < 0.4 → khuyến khích set hitl_triggered=True"
     - "Không được dùng kiến thức ngoài context được cung cấp"
   actual_implementation:
-    status: "TODO Sprint 2"
-    notes: ""
+    status: "done"
+    notes: |
+      Grounded prompt: tuyet doi khong dung kien thuc ngoai context.
+      Citation format bat buoc: [ten_file] sau moi thong tin quan trong.
+      Abstain message chuan: 'Khong tim thay thong tin nay trong tai lieu noi bo. Vui long lien he CS team.'
+      HITL trigger: confidence < 0.4 -> state['hitl_triggered'] = True.
+      LLM: auto-detect OPENAI_API_KEY (GPT-4o-mini) hoac GOOGLE_API_KEY (Gemini 1.5 Flash).
+      Confidence tinh theo avg chunk score, tru penalty cho blocking exceptions va temporal scoping.
 
 # ─────────────────────────────────────────────
 # MCP Server
