@@ -1,0 +1,41 @@
+{
+  "generated_at": "2026-04-14T12:03:34.805334",
+  "day08_single_agent": {
+    "source": "day08/lab/results/scorecard_baseline.md",
+    "total_questions": 12,
+    "avg_confidence": 0.823,
+    "avg_latency_ms": null,
+    "abstain_rate": 0.25,
+    "multi_hop_accuracy": null,
+    "avg_scores": {
+      "faithfulness": 5.0,
+      "relevance": 4.17,
+      "context_recall": 5.0,
+      "completeness": 3.17
+    }
+  },
+  "day09_multi_agent": {
+    "total_traces": 15,
+    "routing_distribution": {
+      "retrieval_worker": "10/15 (66%)",
+      "policy_tool_worker": "5/15 (33%)"
+    },
+    "avg_confidence": 0.75,
+    "avg_latency_ms": 0,
+    "mcp_usage_rate": "0/15 (0%)",
+    "hitl_rate": "1/15 (6%)",
+    "top_sources": [
+      [
+        "sla_p1_2026.txt",
+        15
+      ]
+    ]
+  },
+  "analysis": {
+    "routing_visibility": "Day 09 có route_reason cho từng câu → dễ debug hơn Day 08",
+    "latency_delta_ms": null,
+    "confidence_delta": -0.073,
+    "debuggability": "Multi-agent: có thể test từng worker độc lập. Single-agent: không thể.",
+    "mcp_benefit": "Day 09 có thể extend capability qua MCP không cần sửa core. Day 08 phải hard-code."
+  }
+}

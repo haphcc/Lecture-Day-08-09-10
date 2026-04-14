@@ -11,6 +11,8 @@ Chạy thử:
 
 import json
 import os
+import re
+import uuid
 from datetime import datetime
 from typing import TypedDict, Literal, Optional
 
@@ -69,7 +71,7 @@ def make_initial_state(task: str) -> AgentState:
         "workers_called": [],
         "supervisor_route": "",
         "latency_ms": None,
-        "run_id": f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+        "run_id": f"run_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}_{uuid.uuid4().hex[:6]}",
     }
 
 
@@ -89,36 +91,55 @@ def supervisor_node(state: AgentState) -> AgentState:
     task = state["task"].lower()
     state["history"].append(f"[supervisor] received task: {state['task'][:80]}")
 
-    # --- TODO: Implement routing logic ---
-    # Gợi ý:
-    # - "hoàn tiền", "refund", "flash sale", "license" → policy_tool_worker
-    # - "cấp quyền", "access level", "level 3", "emergency" → policy_tool_worker
-    # - "P1", "escalation", "sla", "ticket" → retrieval_worker
-    # - mã lỗi không rõ (ERR-XXX), không đủ context → human_review
-    # - còn lại → retrieval_worker
+    policy_keywords = [
+        "hoàn tiền",
+        "refund",
+        "policy",
+        "flash sale",
+        "license",
+        "cấp quyền",
+        "access",
+        "admin access",
+        "level 3",
+        "quyền tạm thời",
+    ]
+    retrieval_priority_keywords = ["p1", "escalation", "sla", "ticket", "sự cố"]
+    risk_keywords = ["emergency", "khẩn cấp", "2am", "critical"]
 
-    route = "retrieval_worker"         # TODO: thay bằng logic thực
-    route_reason = "default route"    # TODO: thay bằng lý do thực
+    has_policy_signal = any(kw in task for kw in policy_keywords)
+    has_retrieval_priority_signal = any(kw in task for kw in retrieval_priority_keywords)
+    has_risk_signal = any(kw in task for kw in risk_keywords)
+    has_unknown_error_code = bool(re.search(r"\berr-[a-z0-9]+\b", task))
+
+    # Thiếu context nếu query quá ngắn hoặc chứa mã lỗi nhưng không có tín hiệu domain rõ ràng.
+    low_context = len(task.split()) < 5 or "không rõ" in task
+
+    route = "retrieval_worker"
+    route_reason = "default fallback to retrieval_worker"
     needs_tool = False
     risk_high = False
 
-    # Ví dụ routing cơ bản — nhóm phát triển thêm:
-    policy_keywords = ["hoàn tiền", "refund", "flash sale", "license", "cấp quyền", "access", "level 3"]
-    risk_keywords = ["emergency", "khẩn cấp", "2am", "không rõ", "err-"]
-
-    if any(kw in task for kw in policy_keywords):
+    if has_policy_signal:
         route = "policy_tool_worker"
-        route_reason = f"task contains policy/access keyword"
+        route_reason = "task contains policy/access/refund signal"
         needs_tool = True
 
-    if any(kw in task for kw in risk_keywords):
-        risk_high = True
-        route_reason += " | risk_high flagged"
+    # P1/ticket/escalation ưu tiên retrieval để lấy SLA/evidence trước.
+    if has_retrieval_priority_signal:
+        route = "retrieval_worker"
+        route_reason = "task contains P1/escalation/SLA/ticket signal"
 
-    # Human review override
-    if risk_high and "err-" in task:
+    if has_risk_signal:
+        risk_high = True
+        route_reason += " | risk_high due to emergency/critical signal"
+
+    # Human review chỉ khi có mã lỗi mơ hồ, thiếu context để tự động xử lý an toàn.
+    if has_unknown_error_code and (low_context or not (has_policy_signal or has_retrieval_priority_signal)):
         route = "human_review"
-        route_reason = "unknown error code + risk_high → human review"
+        route_reason = "unknown ERR code with low context -> human review"
+        risk_high = True
+
+    route_reason += f" | mcp={'yes' if needs_tool else 'no'}"
 
     state["supervisor_route"] = route
     state["route_reason"] = route_reason
@@ -139,7 +160,9 @@ def route_decision(state: AgentState) -> Literal["retrieval_worker", "policy_too
     Đây là conditional edge của graph.
     """
     route = state.get("supervisor_route", "retrieval_worker")
-    return route  # type: ignore
+    if route not in ("retrieval_worker", "policy_tool_worker", "human_review"):
+        return "retrieval_worker"
+    return route
 
 
 # ─────────────────────────────────────────────

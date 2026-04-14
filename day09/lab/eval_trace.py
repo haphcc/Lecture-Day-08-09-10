@@ -18,12 +18,16 @@ import json
 import os
 import sys
 import argparse
+import re
 from datetime import datetime
 from typing import Optional
 
 # Import graph
 sys.path.insert(0, os.path.dirname(__file__))
 from graph import run_graph, save_trace
+
+
+BASE_DIR = os.path.dirname(__file__)
 
 
 # ─────────────────────────────────────────────
@@ -37,10 +41,14 @@ def run_test_questions(questions_file: str = "data/test_questions.json") -> list
     Returns:
         list of (question, result) tuples
     """
-    with open(questions_file, encoding="utf-8") as f:
+    questions_path = questions_file
+    if not os.path.isabs(questions_path):
+        questions_path = os.path.join(BASE_DIR, questions_file)
+
+    with open(questions_path, encoding="utf-8") as f:
         questions = json.load(f)
 
-    print(f"\n📋 Running {len(questions)} test questions from {questions_file}")
+    print(f"\n📋 Running {len(questions)} test questions from {questions_path}")
     print("=" * 60)
 
     results = []
@@ -55,7 +63,7 @@ def run_test_questions(questions_file: str = "data/test_questions.json") -> list
             result["question_id"] = q_id
 
             # Save individual trace
-            trace_file = save_trace(result, f"artifacts/traces")
+            trace_file = save_trace(result, os.path.join(BASE_DIR, "artifacts", "traces"))
             print(f"  ✓ route={result.get('supervisor_route', '?')}, "
                   f"conf={result.get('confidence', 0):.2f}, "
                   f"{result.get('latency_ms', 0)}ms")
@@ -95,15 +103,20 @@ def run_grading_questions(questions_file: str = "data/grading_questions.json") -
     Returns:
         path tới grading_run.jsonl
     """
-    if not os.path.exists(questions_file):
-        print(f"❌ {questions_file} chưa được public (sau 17:00 mới có).")
+    questions_path = questions_file
+    if not os.path.isabs(questions_path):
+        questions_path = os.path.join(BASE_DIR, questions_file)
+
+    if not os.path.exists(questions_path):
+        print(f"❌ {questions_path} chưa được public (sau 17:00 mới có).")
         return ""
 
-    with open(questions_file, encoding="utf-8") as f:
+    with open(questions_path, encoding="utf-8") as f:
         questions = json.load(f)
 
-    os.makedirs("artifacts", exist_ok=True)
-    output_file = "artifacts/grading_run.jsonl"
+    artifacts_dir = os.path.join(BASE_DIR, "artifacts")
+    os.makedirs(artifacts_dir, exist_ok=True)
+    output_file = os.path.join(artifacts_dir, "grading_run.jsonl")
 
     print(f"\n🎯 Running GRADING questions — {len(questions)} câu")
     print(f"   Output → {output_file}")
@@ -174,18 +187,22 @@ def analyze_traces(traces_dir: str = "artifacts/traces") -> dict:
     Returns:
         dict of metrics
     """
-    if not os.path.exists(traces_dir):
+    traces_path = traces_dir
+    if not os.path.isabs(traces_path):
+        traces_path = os.path.join(BASE_DIR, traces_dir)
+
+    if not os.path.exists(traces_path):
         print(f"⚠️  {traces_dir} không tồn tại. Chạy run_test_questions() trước.")
         return {}
 
-    trace_files = [f for f in os.listdir(traces_dir) if f.endswith(".json")]
+    trace_files = [f for f in os.listdir(traces_path) if f.endswith(".json")]
     if not trace_files:
-        print(f"⚠️  Không có trace files trong {traces_dir}.")
+        print(f"⚠️  Không có trace files trong {traces_path}.")
         return {}
 
     traces = []
     for fname in trace_files:
-        with open(os.path.join(traces_dir, fname)) as f:
+        with open(os.path.join(traces_path, fname), encoding="utf-8") as f:
             traces.append(json.load(f))
 
     # Compute metrics
@@ -242,26 +259,92 @@ def compare_single_vs_multi(
     """
     So sánh Day 08 (single agent RAG) vs Day 09 (multi-agent).
 
-    TODO Sprint 4: Điền kết quả thực tế từ Day 08 vào day08_baseline.
-
     Returns:
         dict của comparison metrics
     """
     multi_metrics = analyze_traces(multi_traces_dir)
 
-    # TODO: Load Day 08 results nếu có
-    # Nếu không có, dùng baseline giả lập để format
-    day08_baseline = {
-        "total_questions": 15,
-        "avg_confidence": 0.0,          # TODO: Điền từ Day 08 eval.py
-        "avg_latency_ms": 0,            # TODO: Điền từ Day 08
-        "abstain_rate": "?",            # TODO: Điền từ Day 08
-        "multi_hop_accuracy": "?",      # TODO: Điền từ Day 08
-    }
+    def _extract_metric(markdown_text: str, metric_name: str) -> Optional[float]:
+        pattern = rf"\|\s*{re.escape(metric_name)}\s*\|\s*([0-9]+(?:\.[0-9]+)?)\/5\s*\|"
+        match = re.search(pattern, markdown_text, re.IGNORECASE)
+        return float(match.group(1)) if match else None
 
-    if day08_results_file and os.path.exists(day08_results_file):
-        with open(day08_results_file) as f:
-            day08_baseline = json.load(f)
+    def _load_day08_baseline_from_markdown() -> dict:
+        baseline_path = os.path.normpath(
+            os.path.join(BASE_DIR, "..", "..", "day08", "lab", "results", "scorecard_baseline.md")
+        )
+        if not os.path.exists(baseline_path):
+            return {}
+
+        with open(baseline_path, encoding="utf-8") as f:
+            text = f.read()
+
+        faithful = _extract_metric(text, "Faithfulness")
+        relevant = _extract_metric(text, "Relevance")
+        recall = _extract_metric(text, "Context Recall")
+        complete = _extract_metric(text, "Completeness")
+
+        answered = 0
+        abstained = 0
+        for line in text.splitlines():
+            if "| q" in line.lower() and "|" in line:
+                answered += 1
+                if "abstains" in line.lower():
+                    abstained += 1
+
+        if answered == 0:
+            return {}
+
+        avg_conf = None
+        if all(v is not None for v in (faithful, relevant, complete)):
+            avg_conf = round(((faithful + relevant + complete) / 15), 3)
+
+        return {
+            "source": "day08/lab/results/scorecard_baseline.md",
+            "total_questions": answered,
+            "avg_confidence": avg_conf,
+            "avg_latency_ms": None,
+            "abstain_rate": round(abstained / answered, 3),
+            "multi_hop_accuracy": None,
+            "avg_scores": {
+                "faithfulness": faithful,
+                "relevance": relevant,
+                "context_recall": recall,
+                "completeness": complete,
+            },
+        }
+
+    day08_baseline = _load_day08_baseline_from_markdown()
+    if day08_results_file:
+        day08_path = day08_results_file
+        if not os.path.isabs(day08_path):
+            day08_path = os.path.join(BASE_DIR, day08_results_file)
+        if os.path.exists(day08_path):
+            with open(day08_path, encoding="utf-8") as f:
+                day08_baseline = json.load(f)
+
+    if not day08_baseline:
+        day08_baseline = {
+            "source": "not_found",
+            "total_questions": 0,
+            "avg_confidence": None,
+            "avg_latency_ms": None,
+            "abstain_rate": None,
+            "multi_hop_accuracy": None,
+        }
+
+    multi_avg_conf = multi_metrics.get("avg_confidence")
+    multi_avg_latency = multi_metrics.get("avg_latency_ms")
+    day08_avg_conf = day08_baseline.get("avg_confidence")
+    day08_avg_latency = day08_baseline.get("avg_latency_ms")
+
+    latency_delta = None
+    if isinstance(multi_avg_latency, (int, float)) and isinstance(day08_avg_latency, (int, float)):
+        latency_delta = round(multi_avg_latency - day08_avg_latency, 2)
+
+    confidence_delta = None
+    if isinstance(multi_avg_conf, (int, float)) and isinstance(day08_avg_conf, (int, float)):
+        confidence_delta = round(multi_avg_conf - day08_avg_conf, 3)
 
     comparison = {
         "generated_at": datetime.now().isoformat(),
@@ -269,8 +352,8 @@ def compare_single_vs_multi(
         "day09_multi_agent": multi_metrics,
         "analysis": {
             "routing_visibility": "Day 09 có route_reason cho từng câu → dễ debug hơn Day 08",
-            "latency_delta": "TODO: Điền delta latency thực tế",
-            "accuracy_delta": "TODO: Điền delta accuracy thực tế từ grading",
+            "latency_delta_ms": latency_delta,
+            "confidence_delta": confidence_delta,
             "debuggability": "Multi-agent: có thể test từng worker độc lập. Single-agent: không thể.",
             "mcp_benefit": "Day 09 có thể extend capability qua MCP không cần sửa core. Day 08 phải hard-code.",
         },
@@ -285,8 +368,9 @@ def compare_single_vs_multi(
 
 def save_eval_report(comparison: dict) -> str:
     """Lưu báo cáo eval tổng kết ra file JSON."""
-    os.makedirs("artifacts", exist_ok=True)
-    output_file = "artifacts/eval_report.json"
+    artifacts_dir = os.path.join(BASE_DIR, "artifacts")
+    os.makedirs(artifacts_dir, exist_ok=True)
+    output_file = os.path.join(artifacts_dir, "eval_report.json")
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(comparison, f, ensure_ascii=False, indent=2)
     return output_file
