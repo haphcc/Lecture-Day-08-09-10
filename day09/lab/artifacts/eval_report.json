@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-14T12:03:34.805334",
+  "generated_at": "2026-04-14T15:27:40.466115",
   "day08_single_agent": {
     "source": "day08/lab/results/scorecard_baseline.md",
     "total_questions": 12,
@@ -15,26 +15,42 @@
     }
   },
   "day09_multi_agent": {
-    "total_traces": 15,
+    "total_traces": 33,
     "routing_distribution": {
-      "retrieval_worker": "10/15 (66%)",
-      "policy_tool_worker": "5/15 (33%)"
+      "retrieval_worker": "22/33 (66%)",
+      "policy_tool_worker": "11/33 (33%)"
     },
-    "avg_confidence": 0.75,
-    "avg_latency_ms": 0,
-    "mcp_usage_rate": "0/15 (0%)",
-    "hitl_rate": "1/15 (6%)",
+    "avg_confidence": 0.478,
+    "avg_latency_ms": 8995,
+    "mcp_usage_rate": "5/33 (15%)",
+    "hitl_rate": "16/33 (48%)",
     "top_sources": [
       [
         "sla_p1_2026.txt",
-        15
+        24
+      ],
+      [
+        "policy_refund_v4.txt",
+        7
+      ],
+      [
+        "access_control_sop.txt",
+        6
+      ],
+      [
+        "hr_leave_policy.txt",
+        6
+      ],
+      [
+        "it_helpdesk_faq.txt",
+        5
       ]
     ]
   },
   "analysis": {
     "routing_visibility": "Day 09 có route_reason cho từng câu → dễ debug hơn Day 08",
     "latency_delta_ms": null,
-    "confidence_delta": -0.073,
+    "confidence_delta": -0.345,
     "debuggability": "Multi-agent: có thể test từng worker độc lập. Single-agent: không thể.",
     "mcp_benefit": "Day 09 có thể extend capability qua MCP không cần sửa core. Day 08 phải hard-code."
   }

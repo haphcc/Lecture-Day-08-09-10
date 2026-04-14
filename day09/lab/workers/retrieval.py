@@ -98,20 +98,17 @@ def retrieve_dense(query: str, top_k: int = DEFAULT_TOP_K) -> list:
     """
     Dense retrieval: embed query → query ChromaDB → trả về top_k chunks.
 
-    TODO Sprint 2: Implement phần này.
-    - Dùng _get_embedding_fn() để embed query
-    - Query collection với n_results=top_k
-    - Format result thành list of dict
-
     Returns:
         list of {"text": str, "source": str, "score": float, "metadata": dict}
     """
-    # TODO: Implement dense retrieval
     embed = _get_embedding_fn()
     query_embedding = embed(query)
 
     try:
-        collection = _get_collection()
+        import chromadb
+        client = chromadb.PersistentClient(path=CHROMA_PATH)
+        collection = client.get_collection(CHROMA_COLLECTION)
+        
         results = collection.query(
             query_embeddings=[query_embedding],
             n_results=top_k,
@@ -130,6 +127,10 @@ def retrieve_dense(query: str, top_k: int = DEFAULT_TOP_K) -> list:
                 "score": round(1 - dist, 4),  # cosine similarity
                 "metadata": meta,
             })
+        
+        # ChromaDB PersistentClient auto-persists changes
+        # No need to call persist() explicitly
+        
         return chunks
 
     except Exception as e:
