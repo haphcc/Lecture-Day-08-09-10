@@ -67,6 +67,7 @@ python etl_pipeline.py run --raw data/raw/policy_export_inject_strong.csv \
 | **expectation[exported_at_within_48h]** (warn) | FAIL (5 ngày cũ) | FAIL ⚠️ | FAIL ⚠️ | CSV mẫu exported 5 ngày trước (mong đợi) | All manifests: `age_hours=120.9 > SLA 24h` |
 | **rule_dedupe_chunk_text** (cleaning) | 2 duplicate chunks | 0 duplicate → quarantine | 1 duplicate (giữ lại sla_p1) | Tăng cleaned quality | `quarantine_sprint3_clean.csv`: row 2 (duplicate) |
 | **expectation[no_empty_doc_id]** (halt) | PASS (loại empty chunks) | PASS ✅ | PASS ✅ | Bắt chunk_text rỗng | Log: `empty_doc_id_count=0` |
+| **rule_hr_versioning_cutoff_from_config** (cleaning) | cutoff=2026-01-01 → giữ HR `2026-02-01` | `distinction-d-default`: cleaned=5, quarantine=5 | `distinction-d-cutoff` (ENV=2026-03-01): cleaned=4, quarantine=6 | Đổi quyết định clean chỉ bằng config/env, không sửa code hard-code | `manifest_distinction-d-default.json`, `manifest_distinction-d-cutoff.json`, `quarantine_distinction-d-cutoff.csv` |
 
 **Baseline rules (không thay đổi, chỉ ghi chú):**
 - `rule_normalize_effective_date`: Chuẩn ISO YYYY-MM-DD
@@ -164,7 +165,6 @@ Hiện tại Day 10 tập trung vào **data layer quality** (pipeline, cleaning,
 
 ### Rủi ro hiện tại:
 - **CSV mẫu quá cũ (5 ngày):** Freshness FAIL là mong đợi, nhưng nếu production dùng real export thì cần daily batch hoặc webhook update
-- **Rule hardcode cutoff date:** Các rule loại chunk stale dùng ngày cố định (ví dụ: HR 2025, migration policy-v3). Nếu kỳ hạn thay đổi, phải update code → lý tưởng: đọc cutoff từ `contracts/data_contract.yaml`
 - **Embed vector tidak track versioning:** Chỉ dùng upsert + prune, không keep version history. Rollback sẽ mất mát → có thể lưu snapshot manifest cũ để điều tra
 
 ### Việc chưa làm (ngoài scope):
@@ -174,7 +174,7 @@ Hiện tại Day 10 tập trung vào **data layer quality** (pipeline, cleaning,
 - **Alert integration:** Chưa tích hợp email/Slack khi freshness FAIL hoặc expectation halt
 
 ### Next steps (Day 11+):
-1. Rule versioning → đọc từ contract (không hardcode)
+1. Mở rộng versioning config cho nhiều doc_id hơn (không chỉ HR policy)
 2. Freshness 2-boundary (log khi publish xong)
 3. Metric aggregation → CSV trend file
 4. Agent orchestration (dùng collection day10_kb)

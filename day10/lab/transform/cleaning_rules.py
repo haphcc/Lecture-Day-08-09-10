@@ -10,6 +10,7 @@ from __future__ import annotations
 import csv
 import html
 import hashlib
+import os
 import re
 from datetime import datetime
 from pathlib import Path
@@ -30,6 +31,7 @@ _DMY_SLASH = re.compile(r"^(\d{2})/(\d{2})/(\d{4})$")
 _HTML_TAG = re.compile(r"<[^>]+>")
 _CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 _STALE_MIGRATION_HINT = re.compile(r"(bản sync cũ|lỗi migration|policy-v3|legacy)", re.IGNORECASE)
+_DEFAULT_HR_LEAVE_MIN_EFFECTIVE_DATE = "2026-01-01"
 
 
 def _norm_text(s: str) -> str:
@@ -89,6 +91,34 @@ def _normalize_exported_at(raw: str) -> Tuple[str, str]:
         return "", "invalid_exported_at_format"
 
 
+def _get_hr_leave_min_effective_date() -> str:
+    """
+    Ưu tiên cutoff từ ENV, fallback sang contract, cuối cùng dùng default an toàn.
+    """
+    env_value = (os.environ.get("HR_LEAVE_MIN_EFFECTIVE_DATE") or "").strip()
+    if env_value and _ISO_DATE.match(env_value):
+        return env_value
+
+    contract_path = Path(__file__).resolve().parents[1] / "contracts" / "data_contract.yaml"
+    if contract_path.is_file():
+        try:
+            import yaml
+
+            data = yaml.safe_load(contract_path.read_text(encoding="utf-8")) or {}
+            cutoff = (
+                data.get("policy_versioning", {}).get("hr_leave_min_effective_date", "")
+                if isinstance(data, dict)
+                else ""
+            )
+            cutoff = str(cutoff).strip()
+            if cutoff and _ISO_DATE.match(cutoff):
+                return cutoff
+        except Exception:
+            pass
+
+    return _DEFAULT_HR_LEAVE_MIN_EFFECTIVE_DATE
+
+
 def load_raw_csv(path: Path) -> List[Dict[str, str]]:
     rows: List[Dict[str, str]] = []
     with path.open(encoding="utf-8", newline="") as f:
@@ -109,7 +139,7 @@ def clean_rows(
     Baseline (mở rộng theo narrative Day 10):
     1) Quarantine: doc_id không thuộc allowlist (export lạ / catalog sai).
     2) Chuẩn hoá effective_date sang YYYY-MM-DD; quarantine nếu không parse được.
-    3) Quarantine: chunk hr_leave_policy có effective_date < 2026-01-01 (bản HR cũ / conflict version).
+    3) Quarantine: chunk hr_leave_policy có effective_date < cutoff versioning (ENV/contract).
     4) Quarantine: chunk_text rỗng hoặc effective_date rỗng sau chuẩn hoá.
     5) Loại trùng nội dung chunk_text (giữ bản đầu).
     6) Fix stale refund: policy_refund_v4 chứa '14 ngày làm việc' → 7 ngày.
@@ -121,6 +151,7 @@ def clean_rows(
     seen_text: set[str] = set()
     cleaned: List[Dict[str, Any]] = []
     seq = 0
+    hr_cutoff = _get_hr_leave_min_effective_date()
 
     for raw in rows:
         doc_id = raw.get("doc_id", "")
@@ -140,12 +171,13 @@ def clean_rows(
             quarantine.append({**raw, "reason": eff_err, "effective_date_raw": eff_raw})
             continue
 
-        if doc_id == "hr_leave_policy" and eff_norm < "2026-01-01":
+        if doc_id == "hr_leave_policy" and eff_norm < hr_cutoff:
             quarantine.append(
                 {
                     **raw,
                     "reason": "stale_hr_policy_effective_date",
                     "effective_date_normalized": eff_norm,
+                    "hr_leave_min_effective_date": hr_cutoff,
                 }
             )
             continue

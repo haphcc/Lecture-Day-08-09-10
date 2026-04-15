@@ -35,6 +35,14 @@
 | Embed prune | 6 removed | **Xoá 6 chunks từ inject_strong** |
 | Embed upsert | 5 chunks | Phục hồi dữ liệu sạch |
 
+### Distinction branch (d): Versioning cutoff không hard-code
+| Run ID | Cutoff nguồn | cleaned_records | quarantine_records | Ghi chú |
+|--------|--------------|-----------------|--------------------|---------|
+| distinction-d-default | Contract `policy_versioning.hr_leave_min_effective_date=2026-01-01` | 5 | 5 | Dòng HR `effective_date=2026-02-01` được giữ lại |
+| distinction-d-cutoff | ENV `HR_LEAVE_MIN_EFFECTIVE_DATE=2026-03-01` | 4 | 6 | Dòng HR `effective_date=2026-02-01` bị quarantine |
+
+**Kết luận bằng chứng:** cùng một raw file, chỉ thay cutoff từ config/env đã làm đổi quyết định clean (giữ vs quarantine) mà không sửa code hard-code theo ngày cố định.
+
 ---
 
 ## 2. Before / After Retrieval (bắt buộc)
@@ -174,6 +182,11 @@ python eval_retrieval.py --out artifacts/eval/after_inject_strong.csv
 4. **Monitoring:**
    - Chưa có alert/webhook khi freshness FAIL
    - Chưa track vector index size decay
+
+5. **Đã hoàn thành nhánh Distinction (d):**
+   - Rule versioning không còn hard-code ngày cố định.
+   - Cutoff đọc từ `contracts/data_contract.yaml` và có thể override bằng ENV `HR_LEAVE_MIN_EFFECTIVE_DATE`.
+   - Evidence run: `manifest_distinction-d-default.json` và `manifest_distinction-d-cutoff.json`.
 
 ---
 
