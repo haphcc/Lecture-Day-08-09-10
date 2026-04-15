@@ -7,6 +7,7 @@ Sinh viên có thể thay bằng GE / pydantic / custom — miễn là có halt 
 from __future__ import annotations
 
 import re
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from typing import Any, Dict, List, Tuple
 
@@ -26,6 +27,7 @@ def run_expectations(cleaned_rows: List[Dict[str, Any]]) -> Tuple[List[Expectati
     should_halt = True nếu có bất kỳ expectation severity halt nào fail.
     """
     results: List[ExpectationResult] = []
+    now_utc = datetime.now(timezone.utc)
 
     # E1: có ít nhất 1 dòng sau clean
     ok = len(cleaned_rows) >= 1
@@ -109,6 +111,48 @@ def run_expectations(cleaned_rows: List[Dict[str, Any]]) -> Tuple[List[Expectati
             ok6,
             "halt",
             f"violations={len(bad_hr_annual)}",
+        )
+    )
+
+    # E7 (halt): cần giữ lại knowledge tối quan trọng cho policy_refund_v4
+    # Nếu mất toàn bộ chunk refund thì pipeline phải dừng vì retrieval sẽ lệch nghiệp vụ.
+    refund_rows = [r for r in cleaned_rows if r.get("doc_id") == "policy_refund_v4"]
+    ok7 = len(refund_rows) >= 1
+    results.append(
+        ExpectationResult(
+            "refund_doc_present",
+            ok7,
+            "halt",
+            f"refund_rows={len(refund_rows)}",
+        )
+    )
+
+    # E8 (warn): cảnh báo snapshot dữ liệu quá cũ theo exported_at (không dừng pipeline).
+    stale_rows = 0
+    max_age_hours = 0.0
+    for row in cleaned_rows:
+        raw_ts = (row.get("exported_at") or "").strip()
+        if not raw_ts:
+            stale_rows += 1
+            continue
+        try:
+            parsed = datetime.fromisoformat(raw_ts.replace("Z", "+00:00"))
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            age_hours = (now_utc - parsed.astimezone(timezone.utc)).total_seconds() / 3600
+            if age_hours > max_age_hours:
+                max_age_hours = age_hours
+            if age_hours > 48:
+                stale_rows += 1
+        except ValueError:
+            stale_rows += 1
+    ok8 = stale_rows == 0
+    results.append(
+        ExpectationResult(
+            "exported_at_within_48h",
+            ok8,
+            "warn",
+            f"stale_exported_at_rows={stale_rows}; max_age_hours={max_age_hours:.1f}",
         )
     )
 

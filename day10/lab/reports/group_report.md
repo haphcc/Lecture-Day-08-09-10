@@ -43,15 +43,19 @@ _________________
 
 | Rule / Expectation mới (tên ngắn) | Trước (số liệu) | Sau / khi inject (số liệu) | Chứng cứ (log / CSV / commit) |
 |-----------------------------------|------------------|-----------------------------|-------------------------------|
-| … | … | … | … |
+| refund_doc_present (halt) | `refund_rows=0` (mô phỏng lỗi mất dữ liệu refund) | `refund_rows>=1` sau khi restore cleaned snapshot | Log `expectation[refund_doc_present]` trong run sprint2 |
+| exported_at_within_48h (warn) | `stale_exported_at_rows>0` trên snapshot cũ | `stale_exported_at_rows=0` khi dùng export mới hơn | Log `expectation[exported_at_within_48h]` + manifest timestamp |
+| refund_no_stale_14d_window (halt) | `violations>0` khi inject `--no-refund-fix --skip-validate` | `violations=0` ở run chuẩn | So sánh log inject-bad vs sprint2 |
 
 **Rule chính (baseline + mở rộng):**
 
-- …
+- Các rule clean loại bỏ stale chunk, dedupe và chuẩn hóa date/exported_at trước khi validate.
+- Expectation halt được đặt cho các vi phạm gây sai nghiệp vụ retrieval (mất doc refund, còn 14 ngày làm việc, doc_id rỗng).
+- Expectation warn dùng cho rủi ro vận hành (snapshot quá cũ) để không chặn pipeline demo nhưng vẫn phát tín hiệu chất lượng.
 
 **Ví dụ 1 lần expectation fail (nếu có) và cách xử lý:**
 
-_________________
+Run inject-bad với `--no-refund-fix --skip-validate` tạo `expectation[refund_no_stale_14d_window] FAIL (halt)` trong log. Cách xử lý: chạy lại pipeline chuẩn không cờ inject để rule clean sửa về `7 ngày làm việc`, expectation chuyển PASS.
 
 ---
 
