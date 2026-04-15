@@ -8,8 +8,10 @@ Sinh viên thêm ≥3 rule mới: mỗi rule phải ghi `metric_impact` (xem REA
 from __future__ import annotations
 
 import csv
+import html
 import hashlib
 import re
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
@@ -25,6 +27,9 @@ ALLOWED_DOC_IDS = frozenset(
 
 _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _DMY_SLASH = re.compile(r"^(\d{2})/(\d{2})/(\d{4})$")
+_HTML_TAG = re.compile(r"<[^>]+>")
+_CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+_STALE_MIGRATION_HINT = re.compile(r"(bản sync cũ|lỗi migration|policy-v3|legacy)", re.IGNORECASE)
 
 
 def _norm_text(s: str) -> str:
@@ -53,6 +58,37 @@ def _normalize_effective_date(raw: str) -> Tuple[str, str]:
     return "", "invalid_effective_date_format"
 
 
+def _normalize_chunk_text(raw: str) -> Tuple[str, bool]:
+    """
+    Chuẩn hoá text để loại markup/control chars rác trước khi dedupe và embed.
+
+    Trả về (text_normalized, changed).
+    """
+    original = raw or ""
+    cleaned = html.unescape(original)
+    cleaned = _HTML_TAG.sub(" ", cleaned)
+    cleaned = _CONTROL_CHARS.sub("", cleaned)
+    cleaned = " ".join(cleaned.split())
+    return cleaned, cleaned != original
+
+
+def _normalize_exported_at(raw: str) -> Tuple[str, str]:
+    """
+    Chuẩn hoá exported_at sang ISO 8601 hợp lệ; trả về (value, error_reason).
+
+    Dùng để giữ freshness boundary ổn định và quarantine bản export không parse được.
+    """
+    s = (raw or "").strip()
+    if not s:
+        return "", "missing_exported_at"
+    try:
+        parsed = s.replace("Z", "+00:00") if s.endswith("Z") else s
+        dt = datetime.fromisoformat(parsed)
+        return dt.isoformat(), ""
+    except ValueError:
+        return "", "invalid_exported_at_format"
+
+
 def load_raw_csv(path: Path) -> List[Dict[str, str]]:
     rows: List[Dict[str, str]] = []
     with path.open(encoding="utf-8", newline="") as f:
@@ -77,6 +113,9 @@ def clean_rows(
     4) Quarantine: chunk_text rỗng hoặc effective_date rỗng sau chuẩn hoá.
     5) Loại trùng nội dung chunk_text (giữ bản đầu).
     6) Fix stale refund: policy_refund_v4 chứa '14 ngày làm việc' → 7 ngày.
+    7) Quarantine: stale migration note / legacy marker trong chunk_text (bản sync cũ, policy-v3, ...).
+    8) Chuẩn hoá markup/control chars trong chunk_text; quarantine nếu sau khi dọn chỉ còn rỗng.
+    9) Quarantine: exported_at thiếu hoặc không parse được ISO 8601.
     """
     quarantine: List[Dict[str, Any]] = []
     seen_text: set[str] = set()
@@ -111,8 +150,32 @@ def clean_rows(
             )
             continue
 
+        if _STALE_MIGRATION_HINT.search(text):
+            quarantine.append(
+                {
+                    **raw,
+                    "reason": "stale_migration_note",
+                }
+            )
+            continue
+
+        text, text_changed = _normalize_chunk_text(text)
+        if text_changed and not text:
+            quarantine.append({**raw, "reason": "chunk_text_only_markup"})
+            continue
+
         if not text:
             quarantine.append({**raw, "reason": "missing_chunk_text"})
+            continue
+
+        exported_at_norm, exported_err = _normalize_exported_at(exported_at)
+        if exported_err:
+            quarantine.append(
+                {
+                    **raw,
+                    "reason": exported_err,
+                }
+            )
             continue
 
         key = _norm_text(text)
@@ -137,7 +200,7 @@ def clean_rows(
                 "doc_id": doc_id,
                 "chunk_text": fixed_text,
                 "effective_date": eff_norm,
-                "exported_at": exported_at or "",
+                "exported_at": exported_at_norm,
             }
         )
 
