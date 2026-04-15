@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Lab Day 10 — ETL entrypoint: ingest → clean → validate → embed.
 
@@ -17,11 +18,17 @@ Chế độ inject (Sprint 3 — bỏ fix refund để expectation fail / eval x
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+
+# Fix encoding for Windows PowerShell
+if sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", newline="")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", newline="")
 
 from dotenv import load_dotenv
 
